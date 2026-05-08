@@ -38,14 +38,12 @@ with col1:
 
 with col2:
     talla = st.number_input("Talla (cm)", min_value=0.0)
-
     institucion = st.text_input("Institución")
     aseguradora = st.text_input("Aseguradora / EPS")
-
     fecha = st.date_input("Fecha del estudio", value=date.today())
 
 # ---------------------------
-# CONVERSIÓN DE EDAD A AÑOS
+# EDAD A AÑOS
 # ---------------------------
 
 if edad_unidad == "días":
@@ -83,27 +81,21 @@ metodo_vo2 = st.selectbox(
     ]
 )
 
-# ---------------------------
-# VO2 MEDIDO DIRECTAMENTE
-# ---------------------------
+vo2_indexado = None
+vo2_absoluto = None
 
 if metodo_vo2 == "VO₂ medido directamente":
 
     st.subheader("VO₂ medido directamente")
 
     st.markdown("""
-    **Descripción:**  
-    Ingreso manual del VO₂ medido directamente durante el procedimiento.
-
     **Ventajas:**
     - Método más preciso.
     - No depende de ecuaciones predictivas.
-    - Recomendado cuando se requiere mayor precisión hemodinámica.
-    - Especialmente útil en cardiopatías congénitas y pacientes complejos.
+    - Recomendado cuando se requiere mayor precisión.
 
     **Limitaciones:**
     - Requiere equipo especializado.
-    - No siempre está disponible en todos los laboratorios de hemodinamia.
 
     **Referencia:**  
     Li J. *Accurate Measurement of Oxygen Consumption in Children Undergoing Cardiac Catheterization.*  
@@ -124,7 +116,7 @@ if metodo_vo2 == "VO₂ medido directamente":
             if superficie_corporal:
                 vo2_absoluto = vo2_indexado * superficie_corporal
                 st.success(f"VO₂ indexado: {vo2_indexado:.2f} mL/min/m²")
-                st.success(f"VO₂ absoluto estimado: {vo2_absoluto:.2f} mL/min")
+                st.success(f"VO₂ absoluto: {vo2_absoluto:.2f} mL/min")
             else:
                 st.success(f"VO₂ indexado: {vo2_indexado:.2f} mL/min/m²")
                 st.warning("Ingrese peso y talla para calcular VO₂ absoluto.")
@@ -135,14 +127,10 @@ if metodo_vo2 == "VO₂ medido directamente":
             if superficie_corporal:
                 vo2_indexado = vo2_absoluto / superficie_corporal
                 st.success(f"VO₂ absoluto: {vo2_absoluto:.2f} mL/min")
-                st.success(f"VO₂ indexado estimado: {vo2_indexado:.2f} mL/min/m²")
+                st.success(f"VO₂ indexado: {vo2_indexado:.2f} mL/min/m²")
             else:
                 st.success(f"VO₂ absoluto: {vo2_absoluto:.2f} mL/min")
                 st.warning("Ingrese peso y talla para calcular VO₂ indexado.")
-
-# ---------------------------
-# ECUACIÓN DE SECKELER
-# ---------------------------
 
 elif metodo_vo2 == "Ecuación de Seckeler":
 
@@ -155,20 +143,9 @@ elif metodo_vo2 == "Ecuación de Seckeler":
 
     **Variables:**
     - Edad en años.
-    - FC: frecuencia cardíaca en latidos por minuto.
-    - S: sexo biológico, masculino = +10, femenino = 0.
+    - FC: frecuencia cardíaca en lpm.
+    - S: masculino = +10, femenino = 0.
     - Hb: hemoglobina en g/dL.
-
-    **Ventajas:**
-    - Diseñada en pacientes con cardiopatía congénita y adquirida.
-    - Aplicable en niños y adultos.
-    - Incluye variables fisiológicas relevantes como frecuencia cardíaca, sexo y hemoglobina.
-    - Mejor desempeño que LaFarge en la población estudiada.
-
-    **Limitaciones:**
-    - Sigue siendo una estimación.
-    - No reemplaza la medición directa de VO₂.
-    - Puede ser menos precisa en menores de 3 años, pacientes con ventrículo único, anemia o pacientes críticamente enfermos.
 
     **Referencia:**  
     Seckeler MD, Hirsch R, Beekman RH, Goldstein BH.  
@@ -177,14 +154,14 @@ elif metodo_vo2 == "Ecuación de Seckeler":
     """)
 
     fc = st.number_input("Frecuencia cardíaca (lpm)", min_value=0)
-    hb = st.number_input("Hemoglobina (g/dL)", min_value=0.0)
+    hb_seckeler = st.number_input("Hemoglobina para Seckeler (g/dL)", min_value=0.0)
     sexo = st.selectbox("Sexo", ["Masculino", "Femenino"])
 
     if edad_anos > 0:
         ln_edad = math.log(edad_anos)
         sexo_valor = 10 if sexo == "Masculino" else 0
 
-        vo2_indexado = 138 - (11 * ln_edad) - (0.022 * fc) + sexo_valor - (4 * hb)
+        vo2_indexado = 138 - (11 * ln_edad) - (0.022 * fc) + sexo_valor - (4 * hb_seckeler)
 
         st.success(f"VO₂ estimado indexado: {vo2_indexado:.2f} mL/min/m²")
 
@@ -198,15 +175,11 @@ elif metodo_vo2 == "Ecuación de Seckeler":
         if edad_anos < 3:
             st.warning("⚠️ Mayor riesgo de inexactitud en menores de 3 años.")
 
-        if hb < 10 and hb > 0:
+        if hb_seckeler < 10 and hb_seckeler > 0:
             st.warning("⚠️ La anemia puede afectar la precisión del VO₂ estimado.")
 
     else:
         st.error("Ingrese una edad mayor de 0 para calcular VO₂ con Seckeler.")
-
-# ---------------------------
-# ECUACIÓN DE LAFARGE
-# ---------------------------
 
 elif metodo_vo2 == "Ecuación de LaFarge":
 
@@ -217,33 +190,18 @@ elif metodo_vo2 == "Ecuación de LaFarge":
     st.markdown("""
     **Resultado:** VO₂ indexado en mL/min/m².
 
-    **Variables:**
-    - Edad en años.
-    - FC: frecuencia cardíaca en latidos por minuto.
-
-    **Ventajas:**
-    - Ecuación históricamente utilizada.
-    - Fácil de aplicar.
-    - Puede servir para comparación con cálculos antiguos.
-
-    **Limitaciones:**
-    - No recomendada como primera opción.
-    - Menor precisión en pacientes pediátricos pequeños.
-    - Especialmente problemática en menores de 3 años.
-    - No incluye hemoglobina, sexo ni condición clínica del paciente.
-
     **Referencia:**  
     LaFarge CG, Miettinen OS.  
     *The estimation of oxygen consumption.*  
     Cardiovascular Research. 1970;4:23-30.
     """)
 
-    fc = st.number_input("Frecuencia cardíaca (lpm)", min_value=0)
+    fc_lafarge = st.number_input("Frecuencia cardíaca (lpm)", min_value=0)
 
     if edad_anos > 0:
         ln_edad = math.log(edad_anos)
 
-        vo2_indexado = 138.1 - (11.49 * ln_edad) + (0.378 * fc)
+        vo2_indexado = 138.1 - (11.49 * ln_edad) + (0.378 * fc_lafarge)
 
         st.success(f"VO₂ estimado indexado: {vo2_indexado:.2f} mL/min/m²")
 
@@ -258,3 +216,134 @@ elif metodo_vo2 == "Ecuación de LaFarge":
 
     else:
         st.error("Ingrese una edad mayor de 0 para calcular VO₂ con LaFarge.")
+
+# ---------------------------
+# SATURACIÓN VENOSA MIXTA
+# ---------------------------
+
+st.header("Saturación venosa mixta y pO₂ venosa mixta")
+
+st.markdown("""
+Según Wilkinson, cuando se dispone de saturación en VCS y VCI, una aproximación práctica para la saturación venosa mixta es:
+""")
+
+st.latex(r"SatVM = \frac{(3 \times SatVCS) + SatVCI}{4}")
+
+st.markdown("""
+Si solo se dispone de VCS, la app permite usar la saturación de VCS como aproximación de la saturación venosa mixta.
+
+**Referencia:**  
+Wilkinson JL. *Haemodynamic calculations in the catheter laboratory.* Heart. 2001;85:113–120.
+""")
+
+metodo_vm = st.selectbox(
+    "Método para estimar saturación venosa mixta",
+    [
+        "Usar solo VCS",
+        "Calcular con VCS + VCI"
+    ]
+)
+
+sat_vm = None
+po2_vm = None
+
+if metodo_vm == "Usar solo VCS":
+
+    sat_vcs = st.number_input("Saturación VCS (%)", min_value=0.0, max_value=100.0)
+    po2_vcs = st.number_input("pO₂ VCS (mmHg)", min_value=0.0)
+
+    if sat_vcs > 0:
+        sat_vm = sat_vcs
+        st.success(f"Saturación venosa mixta estimada: {sat_vm:.1f}%")
+
+    if po2_vcs > 0:
+        po2_vm = po2_vcs
+        st.success(f"pO₂ venosa mixta estimada: {po2_vm:.1f} mmHg")
+
+else:
+
+    col_vm1, col_vm2 = st.columns(2)
+
+    with col_vm1:
+        sat_vcs = st.number_input("Saturación VCS (%)", min_value=0.0, max_value=100.0)
+        po2_vcs = st.number_input("pO₂ VCS (mmHg)", min_value=0.0)
+
+    with col_vm2:
+        sat_vci = st.number_input("Saturación VCI (%)", min_value=0.0, max_value=100.0)
+        po2_vci = st.number_input("pO₂ VCI (mmHg)", min_value=0.0)
+
+    if sat_vcs > 0 and sat_vci > 0:
+        sat_vm = ((3 * sat_vcs) + sat_vci) / 4
+        st.success(f"Saturación venosa mixta calculada: {sat_vm:.1f}%")
+
+    if po2_vcs > 0 and po2_vci > 0:
+        po2_vm = ((3 * po2_vcs) + po2_vci) / 4
+        st.success(f"pO₂ venosa mixta estimada: {po2_vm:.1f} mmHg")
+
+# ---------------------------
+# DATOS PARA CONTENIDO DE OXÍGENO
+# ---------------------------
+
+st.header("Datos para contenido de oxígeno")
+
+st.markdown("""
+El artículo advierte que cuando se usa oxígeno enriquecido, especialmente FiO₂ mayor de 30%, debe considerarse el oxígeno disuelto para evitar errores importantes en el cálculo de flujo pulmonar y resistencias. :contentReference[oaicite:0]{index=0}
+""")
+
+fio2 = st.number_input("FiO₂ (%)", min_value=21.0, max_value=100.0, value=21.0)
+hb_contenido = st.number_input("Hemoglobina para contenido de O₂ (g/dL)", min_value=0.0)
+
+st.markdown("### Muestras principales")
+
+col_o2_1, col_o2_2 = st.columns(2)
+
+with col_o2_1:
+    sat_ao = st.number_input("Saturación aórtica / sistémica (%)", min_value=0.0, max_value=100.0)
+    pao2 = st.number_input("PaO₂ / pO₂ aórtica (mmHg)", min_value=0.0)
+
+with col_o2_2:
+    sat_pv = st.number_input("Saturación venosa pulmonar o aurícula izquierda (%)", min_value=0.0, max_value=100.0, value=98.0)
+    po2_pv = st.number_input("pO₂ venosa pulmonar / aurícula izquierda (mmHg)", min_value=0.0)
+
+sat_pa = st.number_input("Saturación arteria pulmonar (%)", min_value=0.0, max_value=100.0)
+po2_pa = st.number_input("pO₂ arteria pulmonar (mmHg)", min_value=0.0)
+
+if fio2 > 30:
+    st.warning("⚠️ FiO₂ >30%: es importante incluir oxígeno disuelto en los cálculos.")
+
+if hb_contenido > 0:
+    st.subheader("Contenido de oxígeno calculado")
+
+    def contenido_oxigeno(hb_g_dl, sat_pct, po2):
+        hb_g_l = hb_g_dl * 10
+        sat_decimal = sat_pct / 100
+        return (hb_g_l * 1.36 * sat_decimal) + (po2 * 0.03)
+
+    if sat_ao > 0:
+        cao2 = contenido_oxigeno(hb_contenido, sat_ao, pao2)
+        st.success(f"Contenido arterial sistémico / aórtico: {cao2:.2f} mL/L")
+
+    if sat_vm is not None:
+        cvm_o2 = contenido_oxigeno(hb_contenido, sat_vm, po2_vm if po2_vm else 0)
+        st.success(f"Contenido venoso mixto: {cvm_o2:.2f} mL/L")
+
+    if sat_pv > 0:
+        cpv_o2 = contenido_oxigeno(hb_contenido, sat_pv, po2_pv)
+        st.success(f"Contenido venoso pulmonar / aurícula izquierda: {cpv_o2:.2f} mL/L")
+
+    if sat_pa > 0:
+        cpa_o2 = contenido_oxigeno(hb_contenido, sat_pa, po2_pa)
+        st.success(f"Contenido arteria pulmonar: {cpa_o2:.2f} mL/L")
+else:
+    st.info("Ingrese hemoglobina para calcular contenido de oxígeno.")
+
+# ---------------------------
+# REFERENCIA PRINCIPAL
+# ---------------------------
+
+st.header("Referencia principal para cálculos hemodinámicos")
+
+st.markdown("""
+Wilkinson JL. *Haemodynamic calculations in the catheter laboratory.*  
+Heart. 2001;85:113–120.
+""")
