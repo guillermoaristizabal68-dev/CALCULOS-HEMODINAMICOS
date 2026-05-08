@@ -343,6 +343,128 @@ else:
 
 st.header("Referencia principal para cálculos hemodinámicos")
 
+# ---------------------------
+# MÓDULO FLUJOS Y RESISTENCIAS
+# ---------------------------
+
+st.header("Cálculo de flujos (Fick) y resistencias")
+
+if vo2_absoluto is not None and hb_contenido > 0:
+
+    if sat_vm is not None and sat_ao > 0 and sat_pv > 0 and sat_pa > 0:
+
+        # Contenidos ya calculados previamente
+        try:
+            Ca = cao2
+            Cv = cvm_o2
+            Cpv = cpv_o2
+            Cpa = cpa_o2
+
+            # ---------------------------
+            # FLUJOS
+            # ---------------------------
+
+            Qs = vo2_absoluto / (Ca - Cv) / 1000
+            Qp = vo2_absoluto / (Cpv - Cpa) / 1000
+
+            st.subheader("Flujos")
+
+            st.success(f"Qs (flujo sistémico): {Qs:.2f} L/min")
+            st.success(f"Qp (flujo pulmonar): {Qp:.2f} L/min")
+
+            if Qs > 0:
+                shunt = Qp / Qs
+                st.success(f"Qp/Qs: {shunt:.2f}")
+
+            # ---------------------------
+            # INDEXACIÓN
+            # ---------------------------
+
+            if superficie_corporal:
+                Qs_i = Qs / superficie_corporal
+                Qp_i = Qp / superficie_corporal
+
+                st.subheader("Flujos indexados")
+
+                st.success(f"Qs indexado: {Qs_i:.2f} L/min/m²")
+                st.success(f"Qp indexado: {Qp_i:.2f} L/min/m²")
+            else:
+                Qs_i = None
+                Qp_i = None
+
+            # ---------------------------
+            # PRESIONES
+            # ---------------------------
+
+            st.subheader("Presiones")
+
+            colp1, colp2 = st.columns(2)
+
+            with colp1:
+                PAPm = st.number_input("Presión pulmonar media (mmHg)", min_value=0.0)
+                LAP = st.number_input("Presión aurícula izquierda / wedge (mmHg)", min_value=0.0)
+
+            with colp2:
+                MAP = st.number_input("Presión arterial media sistémica (mmHg)", min_value=0.0)
+                RAP = st.number_input("Presión aurícula derecha (mmHg)", min_value=0.0)
+
+            # ---------------------------
+            # GRADIENTES
+            # ---------------------------
+
+            if PAPm > 0 and LAP >= 0:
+                TPG = PAPm - LAP
+                st.subheader("Gradiente transpulmonar")
+                st.success(f"TPG: {TPG:.2f} mmHg")
+
+            if MAP > 0 and RAP >= 0:
+                TSG = MAP - RAP
+                st.subheader("Gradiente sistémico")
+                st.success(f"Gradiente sistémico: {TSG:.2f} mmHg")
+
+            # ---------------------------
+            # RESISTENCIAS
+            # ---------------------------
+
+            if Qp > 0 and PAPm > 0:
+
+                PVR = (PAPm - LAP) / Qp
+
+                st.subheader("Resistencia vascular pulmonar")
+
+                st.success(f"PVR: {PVR:.2f} Wood units")
+
+                if superficie_corporal:
+                    PVR_i = PVR * superficie_corporal
+                    st.success(f"PVR indexado: {PVR_i:.2f} Wood·m²")
+
+                if st.checkbox("Mostrar en dyn·s·cm⁻⁵ (PVR)"):
+                    st.info(f"PVR: {PVR * 80:.2f} dyn·s·cm⁻⁵")
+
+            if Qs > 0 and MAP > 0:
+
+                SVR = (MAP - RAP) / Qs
+
+                st.subheader("Resistencia vascular sistémica")
+
+                st.success(f"SVR: {SVR:.2f} Wood units")
+
+                if superficie_corporal:
+                    SVR_i = SVR * superficie_corporal
+                    st.success(f"SVR indexado: {SVR_i:.2f} Wood·m²")
+
+                if st.checkbox("Mostrar en dyn·s·cm⁻⁵ (SVR)"):
+                    st.info(f"SVR: {SVR * 80:.2f} dyn·s·cm⁻⁵")
+
+        except:
+            st.error("Error en los cálculos. Verifique los datos ingresados.")
+
+    else:
+        st.info("Complete saturaciones y contenido de oxígeno para calcular flujos.")
+
+else:
+    st.info("Se requiere VO₂ y hemoglobina para calcular flujos.")
+
 st.markdown("""
 Wilkinson JL. *Haemodynamic calculations in the catheter laboratory.*  
 Heart. 2001;85:113–120.
