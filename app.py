@@ -287,7 +287,7 @@ else:
 st.header("Datos para contenido de oxígeno")
 
 st.markdown("""
-El artículo advierte que cuando se usa oxígeno enriquecido, especialmente FiO₂ mayor de 30%, debe considerarse el oxígeno disuelto para evitar errores importantes en el cálculo de flujo pulmonar y resistencias. :contentReference[oaicite:0]{index=0}
+Cuando se usa oxígeno con FiO₂ mayor de 30%, debe considerarse el oxígeno disuelto para evitar errores importantes en el cálculo de flujo pulmonar y resistencias. :contentReference[oaicite:0]{index=0}
 """)
 
 fio2 = st.number_input("FiO₂ (%)", min_value=21.0, max_value=100.0, value=21.0)
