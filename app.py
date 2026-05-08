@@ -42,10 +42,6 @@ with col2:
     aseguradora = st.text_input("Aseguradora / EPS")
     fecha = st.date_input("Fecha del estudio", value=date.today())
 
-# ---------------------------
-# EDAD A AÑOS
-# ---------------------------
-
 if edad_unidad == "días":
     edad_anos = edad_numero / 365
 elif edad_unidad == "meses":
@@ -80,14 +76,7 @@ metodo_vo2 = st.selectbox(
 vo2_indexado = None
 
 if metodo_vo2 == "VO₂ medido directamente":
-
     st.subheader("VO₂ medido directamente")
-
-    st.markdown("""
-    **Referencia:**  
-    Li J. *Accurate Measurement of Oxygen Consumption in Children Undergoing Cardiac Catheterization.*  
-    Catheterization and Cardiovascular Interventions. 2013;81(1):125-32. PMID: 22488802.
-    """)
 
     vo2_indexado = st.number_input("VO₂ indexado (mL/min/m²)", min_value=0.0)
 
@@ -95,17 +84,9 @@ if metodo_vo2 == "VO₂ medido directamente":
         st.success(f"VO₂ indexado: {vo2_indexado:.2f} mL/min/m²")
 
 elif metodo_vo2 == "Ecuación de Seckeler":
-
     st.subheader("Ecuación de Seckeler")
 
     st.latex(r"VO_2 = 138 - 11\ln(edad) - 0.022 \cdot FC + S - 4 \cdot Hb")
-
-    st.markdown("""
-    **Referencia:**  
-    Seckeler MD, Hirsch R, Beekman RH, Goldstein BH.  
-    *A New Predictive Equation for Oxygen Consumption in Children and Adults With Congenital and Acquired Heart Disease.*  
-    Heart. 2015;101(7):517-24. PMID: 25429053.
-    """)
 
     fc_seckeler = st.number_input("Frecuencia cardíaca para Seckeler (lpm)", min_value=0)
     hb_seckeler = st.number_input("Hemoglobina para Seckeler (g/dL)", min_value=0.0)
@@ -131,17 +112,9 @@ elif metodo_vo2 == "Ecuación de Seckeler":
         st.error("Ingrese edad mayor de 0 para calcular VO₂.")
 
 elif metodo_vo2 == "Ecuación de LaFarge":
-
     st.subheader("Ecuación de LaFarge-Miettinen")
 
     st.latex(r"VO_2 = 138.1 - 11.49\ln(edad) + 0.378 \cdot FC")
-
-    st.markdown("""
-    **Referencia:**  
-    LaFarge CG, Miettinen OS.  
-    *The estimation of oxygen consumption.*  
-    Cardiovascular Research. 1970;4:23-30.
-    """)
 
     fc_lafarge = st.number_input("Frecuencia cardíaca para LaFarge (lpm)", min_value=0)
 
@@ -160,10 +133,25 @@ elif metodo_vo2 == "Ecuación de LaFarge":
         st.error("Ingrese edad mayor de 0 para calcular VO₂.")
 
 # ---------------------------
-# SATURACIÓN VENOSA MIXTA
+# CONTENIDO DE OXÍGENO
 # ---------------------------
 
-st.header("Saturación venosa mixta")
+st.header("Contenido de oxígeno")
+
+st.latex(r"Contenido\ O_2 = Hb(g/L) \times 1.36 \times Sat + pO_2 \times 0.03")
+
+fio2 = st.number_input("FiO₂ (%)", min_value=21.0, max_value=100.0, value=21.0)
+
+if fio2 > 30:
+    st.warning("⚠️ FiO₂ >30%: incluir oxígeno disuelto es importante.")
+
+hb_contenido = st.number_input("Hemoglobina para contenido de O₂ (g/dL)", min_value=0.0)
+
+# ---------------------------
+# SATURACIÓN VENOSA MIXTA DENTRO DEL CONTENIDO DE O2
+# ---------------------------
+
+st.subheader("Saturación venosa mixta")
 
 st.latex(r"SatVM = \frac{(3 \times SatVCS) + SatVCI}{4}")
 
@@ -209,19 +197,10 @@ else:
         st.success(f"pO₂ venosa mixta estimada: {po2_vm:.1f} mmHg")
 
 # ---------------------------
-# CONTENIDO DE OXÍGENO
+# MUESTRAS PARA CONTENIDO DE O2
 # ---------------------------
 
-st.header("Contenido de oxígeno")
-
-st.latex(r"Contenido\ O_2 = Hb(g/L) \times 1.36 \times Sat + pO_2 \times 0.03")
-
-fio2 = st.number_input("FiO₂ (%)", min_value=21.0, max_value=100.0, value=21.0)
-
-if fio2 > 30:
-    st.warning("⚠️ FiO₂ >30%: incluir oxígeno disuelto es importante.")
-
-hb_contenido = st.number_input("Hemoglobina para contenido de O₂ (g/dL)", min_value=0.0)
+st.subheader("Muestras para contenido de oxígeno")
 
 col_o2_1, col_o2_2 = st.columns(2)
 
@@ -308,7 +287,7 @@ else:
 # PRESIONES Y RESISTENCIAS
 # ---------------------------
 
-st.header("Gradientes y resistencias")
+st.header("Gradiente transpulmonar y resistencias")
 
 PVR_i = None
 SVR_i = None
@@ -328,42 +307,44 @@ with col_p2:
 if Qp_i is not None and Qs_i is not None:
 
     TPG = PAPm - LAP
-    gradiente_sistemico = MAP - RAP
 
-    st.subheader("Gradientes")
-
+    st.subheader("Gradiente transpulmonar")
     st.success(f"Gradiente transpulmonar: {TPG:.2f} mmHg")
-    st.success(f"Gradiente sistémico: {gradiente_sistemico:.2f} mmHg")
 
     if Qp_i > 0:
         PVR_i = TPG / Qp_i
         st.subheader("Resistencia vascular pulmonar")
-        st.success(f"PVR indexada: {PVR_i:.2f} Wood·m²")
+        st.success(f"RVP indexada: {PVR_i:.2f} Wood·m²")
 
         if SC:
             PVR = PVR_i / SC
-            st.success(f"PVR no indexada: {PVR:.2f} Wood units")
+            st.success(f"RVP no indexada: {PVR:.2f} Wood units")
 
     if Qs_i > 0:
-        SVR_i = gradiente_sistemico / Qs_i
+        SVR_i = (MAP - RAP) / Qs_i
         st.subheader("Resistencia vascular sistémica")
-        st.success(f"SVR indexada: {SVR_i:.2f} Wood·m²")
+        st.success(f"RVS indexada: {SVR_i:.2f} Wood·m²")
 
         if SC:
             SVR = SVR_i / SC
-            st.success(f"SVR no indexada: {SVR:.2f} Wood units")
+            st.success(f"RVS no indexada: {SVR:.2f} Wood units")
+
+    if PVR_i is not None and SVR_i is not None and SVR_i > 0:
+        relacion_pvr_svr = PVR_i / SVR_i
+        st.subheader("Relación RVP/RVS")
+        st.success(f"Relación RVP/RVS: {relacion_pvr_svr:.2f}")
 
     mostrar_dinas = st.checkbox("Mostrar resistencias en dyn·s·cm⁻⁵")
 
     if mostrar_dinas:
         if PVR is not None:
-            st.info(f"PVR no indexada: {PVR * 80:.2f} dyn·s·cm⁻⁵")
+            st.info(f"RVP no indexada: {PVR * 80:.2f} dyn·s·cm⁻⁵")
         if SVR is not None:
-            st.info(f"SVR no indexada: {SVR * 80:.2f} dyn·s·cm⁻⁵")
+            st.info(f"RVS no indexada: {SVR * 80:.2f} dyn·s·cm⁻⁵")
         if PVR_i is not None:
-            st.info(f"PVR indexada: {PVR_i * 80:.2f} dyn·s·cm⁻⁵·m²")
+            st.info(f"RVP indexada: {PVR_i * 80:.2f} dyn·s·cm⁻⁵·m²")
         if SVR_i is not None:
-            st.info(f"SVR indexada: {SVR_i * 80:.2f} dyn·s·cm⁻⁵·m²")
+            st.info(f"RVS indexada: {SVR_i * 80:.2f} dyn·s·cm⁻⁵·m²")
 
 else:
     st.info("Calcule primero Qp y Qs indexados para obtener resistencias.")
