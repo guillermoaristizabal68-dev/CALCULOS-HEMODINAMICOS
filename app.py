@@ -278,7 +278,13 @@ if vo2_indexado is not None and vo2_indexado > 0:
 
             st.success(f"Qs indexado: {Qs_i:.2f} L/min/m²")
             st.success(f"Qp indexado: {Qp_i:.2f} L/min/m²")
+if SC:
+    Qs = Qs_i * SC
+    Qp = Qp_i * SC
 
+    st.success(f"Qs no indexado / gasto cardíaco sistémico: {Qs:.2f} L/min")
+    st.success(f"Qp no indexado / flujo pulmonar: {Qp:.2f} L/min")
+            
             if Qs_i > 0:
                 qp_qs = Qp_i / Qs_i
                 st.success(f"Qp/Qs: {qp_qs:.2f}")
