@@ -367,23 +367,40 @@ if Qs is not None and Qp is not None:
 # ---------------------------
 
 if Qs is not None and Qs > 0 and FC_fick > 0:
+
     VS_fick = (Qs * 1000) / FC_fick
 
     st.subheader("Volumen sistólico")
-    st.success(f"Volumen sistólico sistémico por Fick: {VS_fick:.2f} mL/latido")
+
+    st.success(
+        f"Volumen sistólico sistémico por Fick: "
+        f"{VS_fick:.2f} mL/latido"
+    )
 
     if SC:
+
         IVS_fick = VS_fick / SC
-        st.success(f"Índice volumen sistólico por Fick: {IVS_fick:.2f} mL/latido/m²")
+
+        st.success(
+            f"Índice volumen sistólico por Fick: "
+            f"{IVS_fick:.2f} mL/latido/m²"
+        )
 
         if IVS_fick < 33:
             st.warning("⚠️ Índice volumen sistólico disminuido")
+
         elif IVS_fick <= 47:
             st.info("Índice volumen sistólico dentro de rango esperado")
+
         else:
             st.warning("Índice volumen sistólico elevado")
+
 else:
-    st.info("Ingrese Qs y frecuencia cardíaca válidos para calcular volumen sistólico.")
+
+    st.info(
+        "Ingrese Qs y frecuencia cardíaca válidos "
+        "para calcular volumen sistólico."
+    )
     # ---------------------------
     # GRADIENTE TRANSPULMONAR
     # ---------------------------
