@@ -301,7 +301,87 @@ if vo2_indexado is not None and vo2_indexado > 0:
 
 else:
     st.info("Calcule o ingrese VO₂ indexado para calcular flujos.")
+# ---------------------------
+# TERMODILUCIÓN
+# ---------------------------
 
+st.header("Termodilución")
+
+st.warning(
+    "La termodilución es útil para gasto cardíaco cuando no hay cortocircuitos intracardíacos significativos. "
+    "No debe usarse como método principal para Qp/Qs en presencia de shunts."
+)
+
+usar_termodilucion = st.checkbox("Calcular por método de termodilución")
+
+if usar_termodilucion:
+
+    gasto_td = st.number_input(
+        "Gasto cardíaco por termodilución (L/min)",
+        min_value=0.0
+    )
+
+    if gasto_td > 0:
+
+        st.subheader("Gasto cardíaco e índice cardíaco por termodilución")
+
+        st.success(f"Gasto cardíaco por termodilución: {gasto_td:.2f} L/min")
+
+        if SC:
+            indice_td = gasto_td / SC
+            st.success(f"Índice cardíaco por termodilución: {indice_td:.2f} L/min/m²")
+        else:
+            indice_td = None
+            st.warning("Ingrese peso y talla para calcular índice cardíaco.")
+
+        st.subheader("Presiones para resistencias por termodilución")
+
+        col_td1, col_td2 = st.columns(2)
+
+        with col_td1:
+            PAPm_td = st.number_input("PAP media TD (mmHg)", min_value=0.0)
+            LAP_td = st.number_input("LAP / wedge TD (mmHg)", min_value=0.0)
+
+        with col_td2:
+            MAP_td = st.number_input("MAP TD (mmHg)", min_value=0.0)
+            RAP_td = st.number_input("RAP TD (mmHg)", min_value=0.0)
+
+        if PAPm_td > 0 and MAP_td > 0:
+
+            TPG_td = PAPm_td - LAP_td
+            grad_sist_td = MAP_td - RAP_td
+
+            st.success(f"Gradiente transpulmonar TD: {TPG_td:.2f} mmHg")
+
+            RVP_td = TPG_td / gasto_td
+            RVS_td = grad_sist_td / gasto_td
+
+            st.subheader("Resistencias no indexadas por termodilución")
+
+            st.success(f"RVP no indexada TD: {RVP_td:.2f} Wood units")
+            st.success(f"RVS no indexada TD: {RVS_td:.2f} Wood units")
+
+            if SC:
+                RVPi_td = RVP_td * SC
+                RVSi_td = RVS_td * SC
+
+                st.subheader("Resistencias indexadas por termodilución")
+
+                st.success(f"RVP indexada TD: {RVPi_td:.2f} Wood·m²")
+                st.success(f"RVS indexada TD: {RVSi_td:.2f} Wood·m²")
+
+                if RVSi_td > 0:
+                    st.success(f"Relación RVP/RVS TD: {RVPi_td/RVSi_td:.2f}")
+
+            mostrar_dinas_td = st.checkbox("Mostrar TD en dyn·s·cm⁻⁵")
+
+            if mostrar_dinas_td:
+                st.info(f"RVP TD: {RVP_td * 80:.2f} dyn·s·cm⁻⁵")
+                st.info(f"RVS TD: {RVS_td * 80:.2f} dyn·s·cm⁻⁵")
+
+                if SC:
+                    st.info(f"RVP indexada TD: {RVPi_td * 80:.2f} dyn·s·cm⁻⁵·m²")
+                    st.info(f"RVS indexada TD: {RVSi_td * 80:.2f} dyn·s·cm⁻⁵·m²")
 # ---------------------------
 # PRESIONES Y RESISTENCIAS
 # ---------------------------
