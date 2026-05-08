@@ -63,6 +63,17 @@ else:
     st.info("Ingrese peso y talla para calcular superficie corporal.")
 
 # ---------------------------
+# HEMOGLOBINA GLOBAL
+# ---------------------------
+
+st.header("Hemoglobina")
+
+hb = st.number_input("Hemoglobina (g/dL)", min_value=0.0)
+
+if hb > 0 and (hb < 5 or hb > 25):
+    st.warning("⚠️ Valor de hemoglobina fuera de rango fisiológico habitual. Verifique el dato.")
+
+# ---------------------------
 # VO2
 # ---------------------------
 
@@ -89,14 +100,13 @@ elif metodo_vo2 == "Ecuación de Seckeler":
     st.latex(r"VO_2 = 138 - 11\ln(edad) - 0.022 \cdot FC + S - 4 \cdot Hb")
 
     fc_seckeler = st.number_input("Frecuencia cardíaca para Seckeler (lpm)", min_value=0)
-    hb_seckeler = st.number_input("Hemoglobina para Seckeler (g/dL)", min_value=0.0)
     sexo = st.selectbox("Sexo", ["Masculino", "Femenino"])
 
-    if edad_anos > 0:
+    if edad_anos > 0 and hb > 0:
         ln_edad = math.log(edad_anos)
         sexo_valor = 10 if sexo == "Masculino" else 0
 
-        vo2_indexado = 138 - (11 * ln_edad) - (0.022 * fc_seckeler) + sexo_valor - (4 * hb_seckeler)
+        vo2_indexado = 138 - (11 * ln_edad) - (0.022 * fc_seckeler) + sexo_valor - (4 * hb)
 
         st.success(f"VO₂ estimado indexado: {vo2_indexado:.2f} mL/min/m²")
 
@@ -106,10 +116,10 @@ elif metodo_vo2 == "Ecuación de Seckeler":
         if edad_anos < 3:
             st.warning("⚠️ Mayor riesgo de inexactitud en menores de 3 años.")
 
-        if hb_seckeler > 0 and hb_seckeler < 10:
+        if hb < 10:
             st.warning("⚠️ La anemia puede afectar la precisión del VO₂ estimado.")
     else:
-        st.error("Ingrese edad mayor de 0 para calcular VO₂.")
+        st.info("Ingrese edad mayor de 0 y hemoglobina para calcular VO₂ con Seckeler.")
 
 elif metodo_vo2 == "Ecuación de LaFarge":
     st.subheader("Ecuación de LaFarge-Miettinen")
@@ -145,11 +155,7 @@ fio2 = st.number_input("FiO₂ (%)", min_value=21.0, max_value=100.0, value=21.0
 if fio2 > 30:
     st.warning("⚠️ FiO₂ >30%: incluir oxígeno disuelto es importante.")
 
-hb_contenido = st.number_input("Hemoglobina para contenido de O₂ (g/dL)", min_value=0.0)
-
-# ---------------------------
-# SATURACIÓN VENOSA MIXTA DENTRO DEL CONTENIDO DE O2
-# ---------------------------
+# Saturación venosa mixta dentro de contenido de O2
 
 st.subheader("Saturación venosa mixta")
 
@@ -196,9 +202,7 @@ else:
         po2_vm = ((3 * po2_vcs) + po2_vci) / 4
         st.success(f"pO₂ venosa mixta estimada: {po2_vm:.1f} mmHg")
 
-# ---------------------------
-# MUESTRAS PARA CONTENIDO DE O2
-# ---------------------------
+# Muestras
 
 st.subheader("Muestras para contenido de oxígeno")
 
@@ -209,7 +213,12 @@ with col_o2_1:
     pao2 = st.number_input("PaO₂ / pO₂ aórtica (mmHg)", min_value=0.0)
 
 with col_o2_2:
-    sat_pv = st.number_input("Saturación venosa pulmonar / aurícula izquierda (%)", min_value=0.0, max_value=100.0, value=98.0)
+    sat_pv = st.number_input(
+        "Saturación venosa pulmonar / aurícula izquierda (%)",
+        min_value=0.0,
+        max_value=100.0,
+        value=98.0
+    )
     po2_pv = st.number_input("pO₂ venosa pulmonar / aurícula izquierda (mmHg)", min_value=0.0)
 
 sat_pa = st.number_input("Saturación arteria pulmonar (%)", min_value=0.0, max_value=100.0)
@@ -225,22 +234,22 @@ def contenido_oxigeno(hb_g_dl, sat_pct, po2):
     sat_decimal = sat_pct / 100
     return (hb_g_l * 1.36 * sat_decimal) + (po2 * 0.03)
 
-if hb_contenido > 0:
+if hb > 0:
 
     if sat_ao > 0:
-        Ca = contenido_oxigeno(hb_contenido, sat_ao, pao2)
+        Ca = contenido_oxigeno(hb, sat_ao, pao2)
         st.success(f"Contenido arterial sistémico / aórtico: {Ca:.2f} mL/L")
 
     if sat_vm is not None:
-        Cv = contenido_oxigeno(hb_contenido, sat_vm, po2_vm if po2_vm is not None else 0)
+        Cv = contenido_oxigeno(hb, sat_vm, po2_vm if po2_vm is not None else 0)
         st.success(f"Contenido venoso mixto: {Cv:.2f} mL/L")
 
     if sat_pv > 0:
-        Cpv = contenido_oxigeno(hb_contenido, sat_pv, po2_pv)
+        Cpv = contenido_oxigeno(hb, sat_pv, po2_pv)
         st.success(f"Contenido venoso pulmonar / aurícula izquierda: {Cpv:.2f} mL/L")
 
     if sat_pa > 0:
-        Cpa = contenido_oxigeno(hb_contenido, sat_pa, po2_pa)
+        Cpa = contenido_oxigeno(hb, sat_pa, po2_pa)
         st.success(f"Contenido arteria pulmonar: {Cpa:.2f} mL/L")
 
 else:
@@ -353,9 +362,22 @@ else:
 # REFERENCIA
 # ---------------------------
 
-st.header("Referencia principal")
+st.header("Referencias principales")
 
 st.markdown("""
-Wilkinson JL. *Haemodynamic calculations in the catheter laboratory.*  
-Heart. 2001;85:113–120.
+**Contenido de oxígeno, Qp/Qs, flujos y resistencias:**  
+Wilkinson JL. *Haemodynamic calculations in the catheter laboratory.* Heart. 2001;85:113–120.
+
+**VO₂ medido:**  
+Li J. *Accurate Measurement of Oxygen Consumption in Children Undergoing Cardiac Catheterization.*  
+Catheterization and Cardiovascular Interventions. 2013;81(1):125-32. PMID: 22488802.
+
+**Ecuación de Seckeler:**  
+Seckeler MD, Hirsch R, Beekman RH, Goldstein BH.  
+*A New Predictive Equation for Oxygen Consumption in Children and Adults With Congenital and Acquired Heart Disease.*  
+Heart. 2015;101(7):517-24. PMID: 25429053.
+
+**Ecuación de LaFarge-Miettinen:**  
+LaFarge CG, Miettinen OS. *The estimation of oxygen consumption.*  
+Cardiovascular Research. 1970;4:23-30.
 """)
