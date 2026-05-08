@@ -155,8 +155,6 @@ fio2 = st.number_input("FiO₂ (%)", min_value=21.0, max_value=100.0, value=21.0
 if fio2 > 30:
     st.warning("⚠️ FiO₂ >30%: incluir oxígeno disuelto es importante.")
 
-# Saturación venosa mixta dentro de contenido de O2
-
 st.subheader("Saturación venosa mixta")
 
 st.latex(r"SatVM = \frac{(3 \times SatVCS) + SatVCI}{4}")
@@ -201,8 +199,6 @@ else:
     if po2_vcs > 0 and po2_vci > 0:
         po2_vm = ((3 * po2_vcs) + po2_vci) / 4
         st.success(f"pO₂ venosa mixta estimada: {po2_vm:.1f} mmHg")
-
-# Muestras
 
 st.subheader("Muestras para contenido de oxígeno")
 
@@ -256,13 +252,15 @@ else:
     st.info("Ingrese hemoglobina para calcular contenido de oxígeno.")
 
 # ---------------------------
-# FLUJOS INDEXADOS
+# FLUJOS INDEXADOS Y NO INDEXADOS
 # ---------------------------
 
-st.header("Flujos indexados")
+st.header("Flujos")
 
 Qp_i = None
 Qs_i = None
+Qp = None
+Qs = None
 
 if vo2_indexado is not None and vo2_indexado > 0:
 
@@ -276,11 +274,23 @@ if vo2_indexado is not None and vo2_indexado > 0:
             Qs_i = vo2_indexado / dif_sistemica
             Qp_i = vo2_indexado / dif_pulmonar
 
-            st.success(f"Qs indexado: {Qs_i:.2f} L/min/m²")
-            st.success(f"Qp indexado: {Qp_i:.2f} L/min/m²")
+            st.subheader("Flujos indexados")
+            st.success(f"Qs indexado / índice cardíaco sistémico: {Qs_i:.2f} L/min/m²")
+            st.success(f"Qp indexado / índice pulmonar: {Qp_i:.2f} L/min/m²")
+
+            if SC:
+                Qs = Qs_i * SC
+                Qp = Qp_i * SC
+
+                st.subheader("Flujos no indexados")
+                st.success(f"Qs no indexado / gasto cardíaco sistémico: {Qs:.2f} L/min")
+                st.success(f"Qp no indexado / flujo pulmonar: {Qp:.2f} L/min")
+            else:
+                st.warning("Ingrese peso y talla para calcular Qs y Qp no indexados.")
 
             if Qs_i > 0:
                 qp_qs = Qp_i / Qs_i
+                st.subheader("Relación de cortocircuito")
                 st.success(f"Qp/Qs: {qp_qs:.2f}")
 
         else:
