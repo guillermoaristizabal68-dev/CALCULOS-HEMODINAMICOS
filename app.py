@@ -303,70 +303,219 @@ else:
     st.info("Calcule o ingrese VO₂ indexado para calcular flujos.")
 
 # ---------------------------
-# RESISTENCIAS POR FICK
+# HEMODINÁMICA AVANZADA POR FICK
 # ---------------------------
 
-st.header("Gradiente transpulmonar y resistencias por Fick")
+st.header("Hemodinámica avanzada por Fick")
 
-PVR_i = None
-SVR_i = None
-PVR = None
-SVR = None
+col_pf1, col_pf2 = st.columns(2)
 
-col_p1, col_p2 = st.columns(2)
+with col_pf1:
 
-with col_p1:
-    PAPm = st.number_input("Presión pulmonar media / PAPm (mmHg)", min_value=0.0)
-    LAP = st.number_input("Presión aurícula izquierda / wedge / LAP (mmHg)", min_value=0.0)
+    sPAP_fick = st.number_input(
+        "sPAP Fick (mmHg)",
+        min_value=0.0
+    )
 
-with col_p2:
-    MAP = st.number_input("Presión arterial media sistémica / MAP (mmHg)", min_value=0.0)
-    RAP = st.number_input("Presión aurícula derecha / RAP (mmHg)", min_value=0.0)
+    dPAP_fick = st.number_input(
+        "dPAP Fick (mmHg)",
+        min_value=0.0
+    )
 
-if Qp_i is not None and Qs_i is not None:
+    mPAP_fick = st.number_input(
+        "mPAP Fick (mmHg)",
+        min_value=0.0
+    )
 
-    TPG = PAPm - LAP
+    PAWP_fick = st.number_input(
+        "PAWP / wedge Fick (mmHg)",
+        min_value=0.0
+    )
+
+with col_pf2:
+
+    MAP_fick = st.number_input(
+        "MAP Fick (mmHg)",
+        min_value=0.0
+    )
+
+    RAP_fick = st.number_input(
+        "RAP Fick (mmHg)",
+        min_value=0.0
+    )
+
+    FC_fick = st.number_input(
+        "Frecuencia cardíaca Fick (lpm)",
+        min_value=1
+    )
+
+# ---------------------------
+# VALIDACIÓN
+# ---------------------------
+
+if Qs is not None and Qp is not None:
+
+    st.subheader("Gasto cardíaco e índice cardíaco")
+
+    st.success(f"Gasto cardíaco sistémico por Fick (Qs): {Qs:.2f} L/min")
+
+    if Qs_i is not None:
+        st.success(f"Índice cardíaco por Fick: {Qs_i:.2f} L/min/m²")
+
+    # ---------------------------
+    # VOLUMEN SISTÓLICO
+    # ---------------------------
+
+    if FC_fick > 0:
+
+        VS_fick = (Qs * 1000) / FC_fick
+
+        st.subheader("Volumen sistólico")
+
+        st.success(f"Volumen sistólico: {VS_fick:.2f} mL")
+
+        if SC:
+
+            IVS_fick = VS_fick / SC
+
+            st.success(f"Índice volumen sistólico: {IVS_fick:.2f} mL/m²")
+
+    # ---------------------------
+    # GRADIENTE TRANSPULMONAR
+    # ---------------------------
+
+    TPG_fick = mPAP_fick - PAWP_fick
 
     st.subheader("Gradiente transpulmonar")
-    st.success(f"Gradiente transpulmonar: {TPG:.2f} mmHg")
 
-    if Qp_i > 0:
-        PVR_i = TPG / Qp_i
+    st.success(f"TPG: {TPG_fick:.2f} mmHg")
+
+    # ---------------------------
+    # RVP
+    # ---------------------------
+
+    if Qp > 0:
+
+        PVR_fick = TPG_fick / Qp
+
         st.subheader("Resistencia vascular pulmonar")
-        st.success(f"RVP indexada: {PVR_i:.2f} Wood·m²")
+
+        st.latex(r"PVR = \frac{mPAP - PAWP}{Qp}")
+
+        st.success(f"RVP no indexada: {PVR_fick:.2f} Wood units")
 
         if SC:
-            PVR = PVR_i / SC
-            st.success(f"RVP no indexada: {PVR:.2f} Wood units")
 
-    if Qs_i > 0:
-        SVR_i = (MAP - RAP) / Qs_i
+            PVRI_fick = PVR_fick * SC
+
+            st.success(f"RVP indexada: {PVRI_fick:.2f} Wood·m²")
+
+    # ---------------------------
+    # RPT
+    # ---------------------------
+
+    if Qp > 0:
+
+        TPR_fick = mPAP_fick / Qp
+
+        st.subheader("Resistencia pulmonar total")
+
+        st.success(f"RPT: {TPR_fick:.2f} Wood units")
+
+    # ---------------------------
+    # RVS
+    # ---------------------------
+
+    if Qs > 0:
+
+        SVR_fick = (MAP_fick - RAP_fick) / Qs
+
         st.subheader("Resistencia vascular sistémica")
-        st.success(f"RVS indexada: {SVR_i:.2f} Wood·m²")
+
+        st.success(f"RVS no indexada: {SVR_fick:.2f} Wood units")
 
         if SC:
-            SVR = SVR_i / SC
-            st.success(f"RVS no indexada: {SVR:.2f} Wood units")
 
-    if PVR_i is not None and SVR_i is not None and SVR_i > 0:
-        relacion_pvr_svr = PVR_i / SVR_i
+            SVRI_fick = SVR_fick * SC
+
+            st.success(f"RVS indexada: {SVRI_fick:.2f} Wood·m²")
+
+    # ---------------------------
+    # RELACIÓN RVP/RVS
+    # ---------------------------
+
+    if Qp > 0 and Qs > 0:
+
+        relacion_pvr_svr_fick = PVR_fick / SVR_fick
+
         st.subheader("Relación RVP/RVS")
-        st.success(f"Relación RVP/RVS: {relacion_pvr_svr:.2f}")
 
-    mostrar_dinas = st.checkbox("Mostrar resistencias Fick en dyn·s·cm⁻⁵")
+        st.success(f"Relación RVP/RVS: {relacion_pvr_svr_fick:.2f}")
 
-    if mostrar_dinas:
-        if PVR is not None:
-            st.info(f"RVP no indexada: {PVR * 80:.2f} dyn·s·cm⁻⁵")
-        if SVR is not None:
-            st.info(f"RVS no indexada: {SVR * 80:.2f} dyn·s·cm⁻⁵")
-        if PVR_i is not None:
-            st.info(f"RVP indexada: {PVR_i * 80:.2f} dyn·s·cm⁻⁵·m²")
-        if SVR_i is not None:
-            st.info(f"RVS indexada: {SVR_i * 80:.2f} dyn·s·cm⁻⁵·m²")
+    # ---------------------------
+    # COMPLIANCE PULMONAR
+    # ---------------------------
+
+    if (sPAP_fick - dPAP_fick) > 0:
+
+        CAP_fick = VS_fick / (sPAP_fick - dPAP_fick)
+
+        st.subheader("Compliance arterial pulmonar")
+
+        st.latex(r"CAP = \frac{VS}{sPAP - dPAP}")
+
+        st.success(f"Compliance arterial pulmonar: {CAP_fick:.2f} mL/mmHg")
+
+        if CAP_fick < 2.3:
+            st.warning("⚠️ Compliance pulmonar reducida")
+
+    # ---------------------------
+    # PAPi
+    # ---------------------------
+
+    if RAP_fick > 0:
+
+        PAPi_fick = (sPAP_fick - dPAP_fick) / RAP_fick
+
+        st.subheader("Pulmonary Artery Pulsatility Index (PAPi)")
+
+        st.latex(r"PAPi = \frac{sPAP - dPAP}{RAP}")
+
+        st.success(f"PAPi: {PAPi_fick:.2f}")
+
+        if PAPi_fick < 1:
+            st.error("⚠️ PAPi severamente disminuido")
+
+        elif PAPi_fick < 1.5:
+            st.warning("⚠️ PAPi bajo")
+
+        else:
+            st.info("PAPi conservado")
+
+    # ---------------------------
+    # DYN·S·CM⁻⁵
+    # ---------------------------
+
+    mostrar_dyn_fick = st.checkbox(
+        "Mostrar resistencias Fick en dyn·s·cm⁻⁵"
+    )
+
+    if mostrar_dyn_fick:
+
+        st.subheader("Conversión dyn·s·cm⁻⁵")
+
+        st.info(f"RVP: {PVR_fick * 80:.2f} dyn·s·cm⁻⁵")
+        st.info(f"RVS: {SVR_fick * 80:.2f} dyn·s·cm⁻⁵")
+
+        if SC:
+            st.info(f"RVPI: {PVRI_fick * 80:.2f} dyn·s·cm⁻⁵·m²")
+            st.info(f"RVSI: {SVRI_fick * 80:.2f} dyn·s·cm⁻⁵·m²")
 
 else:
-    st.info("Calcule primero Qp y Qs indexados por Fick para obtener resistencias.")
+
+    st.info(
+        "Calcule primero flujos por Fick para obtener hemodinámica avanzada."
+    )
 
 # ---------------------------
 # HEMODINÁMICA AVANZADA / TERMODILUCIÓN
