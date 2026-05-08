@@ -30,37 +30,32 @@ tab_datos, tab_medidas, tab_fick, tab_td, tab_ref = st.tabs(
 # =========================================================
 # TAB 1 - DATOS
 # =========================================================
-
 with tab_datos:
 
-    st.header("Datos del paciente")
+    st.header("Datos básicos")
 
     col1, col2 = st.columns(2)
 
     with col1:
-        nombre = st.text_input("Nombre")
-        apellidos = st.text_input("Apellidos")
-
-        tipo_documento = st.selectbox(
-            "Tipo de documento",
-            ["Registro civil", "Tarjeta de identidad", "Cédula", "Pasaporte", "Otro"]
-        )
-
-        if tipo_documento == "Otro":
-            tipo_documento_otro = st.text_input("Especifique tipo de documento")
-
-        numero_documento = st.text_input("Número de documento")
-
         edad_numero = st.number_input("Edad", min_value=0)
         edad_unidad = st.selectbox("Unidad de edad", ["días", "meses", "años"])
 
-    with col2:
         peso = st.number_input("Peso (kg)", min_value=0.0)
         talla = st.number_input("Talla (cm)", min_value=0.0)
-        institucion = st.text_input("Institución")
-        aseguradora = st.text_input("Aseguradora / EPS")
-        fecha = st.date_input("Fecha del estudio", value=date.today())
 
+    with col2:
+        hb = st.number_input("Hb (Hemoglobina) g/dL", min_value=0.0)
+
+        fio2 = st.number_input(
+            "FiO₂ (Fracción inspirada de oxígeno) %",
+            min_value=21.0,
+            max_value=100.0,
+            value=21.0
+        )
+
+        FC = st.number_input("FC (Frecuencia cardíaca) lpm", min_value=1)
+
+    # Edad en años
     if edad_unidad == "días":
         edad_anos = edad_numero / 365
     elif edad_unidad == "meses":
@@ -68,34 +63,29 @@ with tab_datos:
     else:
         edad_anos = edad_numero
 
-    st.header("Datos fisiológicos")
+    # Superficie corporal
+    if peso > 0 and talla > 0:
+        SC = 0.024265 * (peso ** 0.5378) * (talla ** 0.3964)
+        st.success(f"SC (Superficie corporal): {SC:.2f} m²")
+    else:
+        SC = None
+        st.info("Ingrese peso y talla para calcular SC.")
 
-    col3, col4 = st.columns(2)
+    if hb > 0 and (hb < 5 or hb > 25):
+        st.warning("⚠️ Hemoglobina fuera de rango fisiológico habitual.")
 
-    with col3:
-        hb = st.number_input("Hemoglobina (g/dL)", min_value=0.0)
-        fio2 = st.number_input("FiO₂ (%)", min_value=21.0, max_value=100.0, value=21.0)
-        FC = st.number_input("Frecuencia cardíaca (lpm)", min_value=1)
-
-    with col4:
-        if peso > 0 and talla > 0:
-            SC = 0.024265 * (peso ** 0.5378) * (talla ** 0.3964)
-            st.success(f"Superficie corporal: {SC:.2f} m²")
-        else:
-            SC = None
-            st.info("Ingrese peso y talla para calcular superficie corporal.")
-
-        if hb > 0 and (hb < 5 or hb > 25):
-            st.warning("⚠️ Hemoglobina fuera de rango fisiológico habitual.")
-
-        if fio2 > 30:
-            st.warning("⚠️ FiO₂ >30%: incluir oxígeno disuelto es importante.")
+    if fio2 > 30:
+        st.warning("⚠️ FiO₂ >30%: considerar oxígeno disuelto.")
 
     st.header("Cálculo de VO₂")
 
     metodo_vo2 = st.selectbox(
         "Método de cálculo de VO₂",
-        ["VO₂ medido directamente", "Ecuación de Seckeler", "Ecuación de LaFarge"]
+        [
+            "VO₂ medido directamente",
+            "Ecuación de Seckeler",
+            "Ecuación de LaFarge"
+        ]
     )
 
     sexo = None
@@ -112,12 +102,16 @@ with tab_datos:
 
     elif metodo_vo2 == "Ecuación de Seckeler":
 
-        st.latex(r"VO_2 = 138 - 11\ln(edad) - 0.022 \cdot FC + S - 4 \cdot Hb")
+        st.latex(
+            r"VO_2 = 138 - 11\ln(edad)"
+            r" - 0.022 \cdot FC + S - 4 \cdot Hb"
+        )
 
         sexo = st.selectbox("Sexo", ["Masculino", "Femenino"])
 
         if edad_anos > 0 and hb > 0:
             sexo_valor = 10 if sexo == "Masculino" else 0
+
             vo2_indexado = (
                 138
                 - (11 * math.log(edad_anos))
@@ -129,31 +123,34 @@ with tab_datos:
             st.success(f"VO₂ estimado indexado: {vo2_indexado:.2f} mL/min/m²")
 
             if edad_anos < 1:
-                st.info("Edad <1 año: se usó edad en meses/12 o días/365 para evitar ln(0).")
+                st.info("Edad <1 año: se usó edad en meses/12 o días/365.")
 
             if edad_anos < 3:
-                st.warning("⚠️ Mayor riesgo de inexactitud en menores de 3 años.")
+                st.warning("⚠️ Mayor riesgo de inexactitud en <3 años.")
 
             if hb < 10:
-                st.warning("⚠️ La anemia puede afectar la precisión del VO₂ estimado.")
-        else:
-            st.info("Ingrese edad y hemoglobina para calcular VO₂ con Seckeler.")
+                st.warning("⚠️ La anemia puede afectar la precisión.")
 
     elif metodo_vo2 == "Ecuación de LaFarge":
 
-        st.latex(r"VO_2 = 138.1 - 11.49\ln(edad) + 0.378 \cdot FC")
+        st.latex(
+            r"VO_2 = 138.1 - 11.49\ln(edad)"
+            r" + 0.378 \cdot FC"
+        )
 
         if edad_anos > 0:
-            vo2_indexado = 138.1 - (11.49 * math.log(edad_anos)) + (0.378 * FC)
+            vo2_indexado = (
+                138.1
+                - (11.49 * math.log(edad_anos))
+                + (0.378 * FC)
+            )
 
             st.success(f"VO₂ estimado indexado: {vo2_indexado:.2f} mL/min/m²")
 
-            st.warning("⚠️ Método histórico. No recomendado como primera opción.")
+            st.warning("⚠️ Método histórico.")
 
             if edad_anos < 3:
-                st.error("❌ Alta inexactitud esperada en menores de 3 años.")
-        else:
-            st.info("Ingrese edad mayor de 0 para calcular VO₂.")
+                st.error("❌ Alta inexactitud esperada en <3 años.")
 
 # =========================================================
 # TAB 2 - MEDIDAS
