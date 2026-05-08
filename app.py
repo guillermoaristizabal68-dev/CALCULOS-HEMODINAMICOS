@@ -362,48 +362,28 @@ if Qs is not None and Qp is not None:
     if Qs_i is not None:
         st.success(f"Índice cardíaco por Fick: {Qs_i:.2f} L/min/m²")
 
-    # ---------------------------
+# ---------------------------
 # VOLUMEN SISTÓLICO
 # ---------------------------
 
 if Qs is not None and Qs > 0 and FC_fick > 0:
-
-    # VS sistémico derivado de Qs
     VS_fick = (Qs * 1000) / FC_fick
 
     st.subheader("Volumen sistólico")
+    st.success(f"Volumen sistólico sistémico por Fick: {VS_fick:.2f} mL/latido")
 
-    st.success(
-        f"Volumen sistólico sistémico por Fick: "
-        f"{VS_fick:.2f} mL/latido"
-    )
-
-    # Índice volumen sistólico
     if SC:
-
         IVS_fick = VS_fick / SC
+        st.success(f"Índice volumen sistólico por Fick: {IVS_fick:.2f} mL/latido/m²")
 
-        st.success(
-            f"Índice volumen sistólico por Fick: "
-            f"{IVS_fick:.2f} mL/latido/m²"
-        )
-
-        # Interpretación opcional
         if IVS_fick < 33:
             st.warning("⚠️ Índice volumen sistólico disminuido")
-
         elif IVS_fick <= 47:
             st.info("Índice volumen sistólico dentro de rango esperado")
-
         else:
             st.warning("Índice volumen sistólico elevado")
-
 else:
-
-    st.info(
-        "Ingrese Qs y frecuencia cardíaca válidos "
-        "para calcular volumen sistólico."
-    )
+    st.info("Ingrese Qs y frecuencia cardíaca válidos para calcular volumen sistólico.")
     # ---------------------------
     # GRADIENTE TRANSPULMONAR
     # ---------------------------
