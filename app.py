@@ -252,10 +252,10 @@ else:
     st.info("Ingrese hemoglobina para calcular contenido de oxígeno.")
 
 # ---------------------------
-# FLUJOS INDEXADOS Y NO INDEXADOS
+# FLUJOS POR FICK
 # ---------------------------
 
-st.header("Flujos")
+st.header("Flujos por método de Fick")
 
 Qp_i = None
 Qs_i = None
@@ -301,92 +301,12 @@ if vo2_indexado is not None and vo2_indexado > 0:
 
 else:
     st.info("Calcule o ingrese VO₂ indexado para calcular flujos.")
+
 # ---------------------------
-# TERMODILUCIÓN
-# ---------------------------
-
-st.header("Termodilución")
-
-st.warning(
-    "La termodilución es útil para gasto cardíaco cuando no hay cortocircuitos intracardíacos significativos. "
-    "No debe usarse como método principal para Qp/Qs en presencia de shunts."
-)
-
-usar_termodilucion = st.checkbox("Calcular por método de termodilución")
-
-if usar_termodilucion:
-
-    gasto_td = st.number_input(
-        "Gasto cardíaco por termodilución (L/min)",
-        min_value=0.0
-    )
-
-    if gasto_td > 0:
-
-        st.subheader("Gasto cardíaco e índice cardíaco por termodilución")
-
-        st.success(f"Gasto cardíaco por termodilución: {gasto_td:.2f} L/min")
-
-        if SC:
-            indice_td = gasto_td / SC
-            st.success(f"Índice cardíaco por termodilución: {indice_td:.2f} L/min/m²")
-        else:
-            indice_td = None
-            st.warning("Ingrese peso y talla para calcular índice cardíaco.")
-
-        st.subheader("Presiones para resistencias por termodilución")
-
-        col_td1, col_td2 = st.columns(2)
-
-        with col_td1:
-            PAPm_td = st.number_input("PAP media TD (mmHg)", min_value=0.0)
-            LAP_td = st.number_input("LAP / wedge TD (mmHg)", min_value=0.0)
-
-        with col_td2:
-            MAP_td = st.number_input("MAP TD (mmHg)", min_value=0.0)
-            RAP_td = st.number_input("RAP TD (mmHg)", min_value=0.0)
-
-        if PAPm_td > 0 and MAP_td > 0:
-
-            TPG_td = PAPm_td - LAP_td
-            grad_sist_td = MAP_td - RAP_td
-
-            st.success(f"Gradiente transpulmonar TD: {TPG_td:.2f} mmHg")
-
-            RVP_td = TPG_td / gasto_td
-            RVS_td = grad_sist_td / gasto_td
-
-            st.subheader("Resistencias no indexadas por termodilución")
-
-            st.success(f"RVP no indexada TD: {RVP_td:.2f} Wood units")
-            st.success(f"RVS no indexada TD: {RVS_td:.2f} Wood units")
-
-            if SC:
-                RVPi_td = RVP_td * SC
-                RVSi_td = RVS_td * SC
-
-                st.subheader("Resistencias indexadas por termodilución")
-
-                st.success(f"RVP indexada TD: {RVPi_td:.2f} Wood·m²")
-                st.success(f"RVS indexada TD: {RVSi_td:.2f} Wood·m²")
-
-                if RVSi_td > 0:
-                    st.success(f"Relación RVP/RVS TD: {RVPi_td/RVSi_td:.2f}")
-
-            mostrar_dinas_td = st.checkbox("Mostrar TD en dyn·s·cm⁻⁵")
-
-            if mostrar_dinas_td:
-                st.info(f"RVP TD: {RVP_td * 80:.2f} dyn·s·cm⁻⁵")
-                st.info(f"RVS TD: {RVS_td * 80:.2f} dyn·s·cm⁻⁵")
-
-                if SC:
-                    st.info(f"RVP indexada TD: {RVPi_td * 80:.2f} dyn·s·cm⁻⁵·m²")
-                    st.info(f"RVS indexada TD: {RVSi_td * 80:.2f} dyn·s·cm⁻⁵·m²")
-# ---------------------------
-# PRESIONES Y RESISTENCIAS
+# RESISTENCIAS POR FICK
 # ---------------------------
 
-st.header("Gradiente transpulmonar y resistencias")
+st.header("Gradiente transpulmonar y resistencias por Fick")
 
 PVR_i = None
 SVR_i = None
@@ -433,7 +353,7 @@ if Qp_i is not None and Qs_i is not None:
         st.subheader("Relación RVP/RVS")
         st.success(f"Relación RVP/RVS: {relacion_pvr_svr:.2f}")
 
-    mostrar_dinas = st.checkbox("Mostrar resistencias en dyn·s·cm⁻⁵")
+    mostrar_dinas = st.checkbox("Mostrar resistencias Fick en dyn·s·cm⁻⁵")
 
     if mostrar_dinas:
         if PVR is not None:
@@ -446,7 +366,153 @@ if Qp_i is not None and Qs_i is not None:
             st.info(f"RVS indexada: {SVR_i * 80:.2f} dyn·s·cm⁻⁵·m²")
 
 else:
-    st.info("Calcule primero Qp y Qs indexados para obtener resistencias.")
+    st.info("Calcule primero Qp y Qs indexados por Fick para obtener resistencias.")
+
+# ---------------------------
+# HEMODINÁMICA AVANZADA / TERMODILUCIÓN
+# ---------------------------
+
+st.header("Hemodinámica avanzada / Termodilución")
+
+st.warning(
+    "La termodilución es útil para estimar gasto cardíaco cuando no hay cortocircuitos intracardíacos significativos. "
+    "No debe usarse como método principal para calcular Qp/Qs en presencia de shunts."
+)
+
+usar_td = st.checkbox("Calcular parámetros por termodilución")
+
+if usar_td:
+
+    col_td1, col_td2 = st.columns(2)
+
+    with col_td1:
+        CO_td = st.number_input("Gasto cardíaco por termodilución / CO (L/min)", min_value=0.0)
+        FC_td = st.number_input("Frecuencia cardíaca para termodilución (lpm)", min_value=1)
+
+        sPAP_td = st.number_input("sPAP TD (mmHg)", min_value=0.0)
+        dPAP_td = st.number_input("dPAP TD (mmHg)", min_value=0.0)
+        mPAP_td = st.number_input("mPAP TD (mmHg)", min_value=0.0)
+
+    with col_td2:
+        RAP_td = st.number_input("RAP TD (mmHg)", min_value=0.0)
+        PAWP_td = st.number_input("PAWP / wedge TD (mmHg)", min_value=0.0)
+        MAP_td = st.number_input("MAP TD (mmHg)", min_value=0.0)
+
+    if CO_td > 0:
+
+        st.subheader("Gasto cardíaco e índice cardíaco")
+
+        st.success(f"Gasto cardíaco por termodilución: {CO_td:.2f} L/min")
+
+        if SC:
+            CI_td = CO_td / SC
+            st.success(f"Índice cardíaco por termodilución: {CI_td:.2f} L/min/m²")
+
+            if CI_td < 2.0:
+                st.error("⚠️ Índice cardíaco severamente disminuido.")
+            elif CI_td < 2.5:
+                st.warning("⚠️ Índice cardíaco bajo.")
+            elif CI_td <= 4.0:
+                st.info("Índice cardíaco dentro de rango esperado.")
+            else:
+                st.warning("Índice cardíaco elevado.")
+        else:
+            CI_td = None
+            st.warning("Ingrese peso y talla para calcular índice cardíaco.")
+
+        st.subheader("Volumen sistólico")
+
+        SV_td = (CO_td * 1000) / FC_td
+        st.success(f"Volumen sistólico: {SV_td:.2f} mL")
+
+        if SC:
+            SVI_td = SV_td / SC
+            st.success(f"Índice de volumen sistólico: {SVI_td:.2f} mL/m²")
+        else:
+            SVI_td = None
+
+        st.subheader("Gradiente transpulmonar")
+
+        TPG_td = mPAP_td - PAWP_td
+        st.success(f"Gradiente transpulmonar TD: {TPG_td:.2f} mmHg")
+
+        st.subheader("Resistencia vascular pulmonar")
+
+        PVR_td = TPG_td / CO_td
+        st.latex(r"RVP = \frac{mPAP - PAWP}{CO}")
+        st.success(f"RVP no indexada TD: {PVR_td:.2f} Wood units")
+
+        if SC:
+            PVRI_td = PVR_td * SC
+            st.success(f"RVP indexada TD: {PVRI_td:.2f} Wood·m²")
+        else:
+            PVRI_td = None
+
+        st.subheader("Resistencia pulmonar total")
+
+        TPR_td = mPAP_td / CO_td
+        st.latex(r"RPT = \frac{mPAP}{CO}")
+        st.success(f"RPT TD: {TPR_td:.2f} Wood units")
+
+        st.subheader("Resistencia vascular sistémica")
+
+        SVR_td = (MAP_td - RAP_td) / CO_td
+        st.success(f"RVS no indexada TD: {SVR_td:.2f} Wood units")
+
+        if SC:
+            SVRI_td = SVR_td * SC
+            st.success(f"RVS indexada TD: {SVRI_td:.2f} Wood·m²")
+        else:
+            SVRI_td = None
+
+        if SVR_td > 0:
+            st.subheader("Relación RVP/RVS")
+            st.success(f"Relación RVP/RVS TD: {PVR_td / SVR_td:.2f}")
+
+        st.subheader("Compliance arterial pulmonar")
+
+        if (sPAP_td - dPAP_td) > 0:
+            PAC_td = SV_td / (sPAP_td - dPAP_td)
+            st.latex(r"CAP = \frac{VS}{sPAP - dPAP}")
+            st.success(f"Compliance arterial pulmonar TD: {PAC_td:.2f} mL/mmHg")
+
+            if PAC_td < 2.3:
+                st.warning("⚠️ Compliance arterial pulmonar reducida.")
+        else:
+            st.info("Ingrese sPAP y dPAP válidas para calcular compliance arterial pulmonar.")
+
+        st.subheader("Pulmonary Artery Pulsatility Index (PAPi)")
+
+        if RAP_td > 0:
+            PAPi_td = (sPAP_td - dPAP_td) / RAP_td
+            st.latex(r"PAPi = \frac{sPAP - dPAP}{RAP}")
+            st.success(f"PAPi TD: {PAPi_td:.2f}")
+
+            if PAPi_td < 1:
+                st.error("⚠️ PAPi severamente disminuido.")
+            elif PAPi_td < 1.5:
+                st.warning("⚠️ PAPi bajo.")
+            else:
+                st.info("PAPi conservado.")
+        else:
+            st.info("Ingrese RAP mayor de 0 para calcular PAPi.")
+
+        mostrar_dyn_td = st.checkbox("Mostrar termodilución en dyn·s·cm⁻⁵")
+
+        if mostrar_dyn_td:
+            st.subheader("Conversión a dyn·s·cm⁻⁵")
+
+            st.info(f"RVP TD: {PVR_td * 80:.2f} dyn·s·cm⁻⁵")
+            st.info(f"RVS TD: {SVR_td * 80:.2f} dyn·s·cm⁻⁵")
+
+            if PVRI_td is not None:
+                st.info(f"RVP indexada TD: {PVRI_td * 80:.2f} dyn·s·cm⁻⁵·m²")
+
+            if SVRI_td is not None:
+                st.info(f"RVS indexada TD: {SVRI_td * 80:.2f} dyn·s·cm⁻⁵·m²")
+
+    else:
+        st.info("Ingrese gasto cardíaco por termodilución para calcular parámetros.")
 
 # ---------------------------
 # REFERENCIA
@@ -470,4 +536,9 @@ Heart. 2015;101(7):517-24. PMID: 25429053.
 **Ecuación de LaFarge-Miettinen:**  
 LaFarge CG, Miettinen OS. *The estimation of oxygen consumption.*  
 Cardiovascular Research. 1970;4:23-30.
+
+**Hipertensión pulmonar:**  
+Humbert M, Kovacs G, Hoeper MM, et al.  
+*2022 ESC/ERS Guidelines for the Diagnosis and Treatment of Pulmonary Hypertension.*  
+European Respiratory Journal. 2023.
 """)
