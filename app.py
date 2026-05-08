@@ -9,588 +9,510 @@ st.set_page_config(
 
 st.title("Calculadora Hemodinámica Cardiovascular")
 
-# ---------------------------
-# DATOS DE IDENTIFICACIÓN
-# ---------------------------
+# =========================================================
+# VARIABLES INICIALES
+# =========================================================
 
-st.header("Datos de identificación")
-
-col1, col2 = st.columns(2)
-
-with col1:
-    nombre = st.text_input("Nombre")
-    apellidos = st.text_input("Apellidos")
-
-    tipo_documento = st.selectbox(
-        "Tipo de documento",
-        ["Registro civil", "Tarjeta de identidad", "Cédula", "Pasaporte", "Otro"]
-    )
-
-    if tipo_documento == "Otro":
-        tipo_documento_otro = st.text_input("Especifique tipo de documento")
-
-    numero_documento = st.text_input("Número de documento")
-
-    edad_numero = st.number_input("Edad", min_value=0)
-    edad_unidad = st.selectbox("Unidad de edad", ["días", "meses", "años"])
-
-    peso = st.number_input("Peso (kg)", min_value=0.0)
-
-with col2:
-    talla = st.number_input("Talla (cm)", min_value=0.0)
-    institucion = st.text_input("Institución")
-    aseguradora = st.text_input("Aseguradora / EPS")
-    fecha = st.date_input("Fecha del estudio", value=date.today())
-
-if edad_unidad == "días":
-    edad_anos = edad_numero / 365
-elif edad_unidad == "meses":
-    edad_anos = edad_numero / 12
-else:
-    edad_anos = edad_numero
-
-# ---------------------------
-# SUPERFICIE CORPORAL
-# ---------------------------
-
-st.header("Superficie corporal")
-
-if peso > 0 and talla > 0:
-    SC = 0.024265 * (peso ** 0.5378) * (talla ** 0.3964)
-    st.success(f"Superficie corporal: {SC:.2f} m²")
-else:
-    SC = None
-    st.info("Ingrese peso y talla para calcular superficie corporal.")
-
-# ---------------------------
-# HEMOGLOBINA GLOBAL
-# ---------------------------
-
-st.header("Hemoglobina")
-
-hb = st.number_input("Hemoglobina (g/dL)", min_value=0.0)
-
-if hb > 0 and (hb < 5 or hb > 25):
-    st.warning("⚠️ Valor de hemoglobina fuera de rango fisiológico habitual. Verifique el dato.")
-
-# ---------------------------
-# VO2
-# ---------------------------
-
-st.header("Cálculo de VO₂")
-
-metodo_vo2 = st.selectbox(
-    "Método de cálculo de VO₂",
-    ["VO₂ medido directamente", "Ecuación de Seckeler", "Ecuación de LaFarge"]
-)
-
+SC = None
 vo2_indexado = None
 
-if metodo_vo2 == "VO₂ medido directamente":
-    st.subheader("VO₂ medido directamente")
+Ca = Cv = Cpv = Cpa = None
+Qs_i = Qp_i = Qs = Qp = None
 
-    vo2_indexado = st.number_input("VO₂ indexado (mL/min/m²)", min_value=0.0)
+# =========================================================
+# PESTAÑAS
+# =========================================================
 
-    if vo2_indexado > 0:
-        st.success(f"VO₂ indexado: {vo2_indexado:.2f} mL/min/m²")
-
-elif metodo_vo2 == "Ecuación de Seckeler":
-    st.subheader("Ecuación de Seckeler")
-
-    st.latex(r"VO_2 = 138 - 11\ln(edad) - 0.022 \cdot FC + S - 4 \cdot Hb")
-
-    fc_seckeler = st.number_input("Frecuencia cardíaca para Seckeler (lpm)", min_value=0)
-    sexo = st.selectbox("Sexo", ["Masculino", "Femenino"])
-
-    if edad_anos > 0 and hb > 0:
-        ln_edad = math.log(edad_anos)
-        sexo_valor = 10 if sexo == "Masculino" else 0
-
-        vo2_indexado = 138 - (11 * ln_edad) - (0.022 * fc_seckeler) + sexo_valor - (4 * hb)
-
-        st.success(f"VO₂ estimado indexado: {vo2_indexado:.2f} mL/min/m²")
-
-        if edad_anos < 1:
-            st.info("Edad <1 año: se usó edad en meses/12 o días/365 para evitar ln(0).")
-
-        if edad_anos < 3:
-            st.warning("⚠️ Mayor riesgo de inexactitud en menores de 3 años.")
-
-        if hb < 10:
-            st.warning("⚠️ La anemia puede afectar la precisión del VO₂ estimado.")
-    else:
-        st.info("Ingrese edad mayor de 0 y hemoglobina para calcular VO₂ con Seckeler.")
-
-elif metodo_vo2 == "Ecuación de LaFarge":
-    st.subheader("Ecuación de LaFarge-Miettinen")
-
-    st.latex(r"VO_2 = 138.1 - 11.49\ln(edad) + 0.378 \cdot FC")
-
-    fc_lafarge = st.number_input("Frecuencia cardíaca para LaFarge (lpm)", min_value=0)
-
-    if edad_anos > 0:
-        ln_edad = math.log(edad_anos)
-
-        vo2_indexado = 138.1 - (11.49 * ln_edad) + (0.378 * fc_lafarge)
-
-        st.success(f"VO₂ estimado indexado: {vo2_indexado:.2f} mL/min/m²")
-
-        st.warning("⚠️ Método histórico. No recomendado como primera opción.")
-
-        if edad_anos < 3:
-            st.error("❌ Alta inexactitud esperada en menores de 3 años.")
-    else:
-        st.error("Ingrese edad mayor de 0 para calcular VO₂.")
-
-# ---------------------------
-# CONTENIDO DE OXÍGENO
-# ---------------------------
-
-st.header("Contenido de oxígeno")
-
-st.latex(r"Contenido\ O_2 = Hb(g/L) \times 1.36 \times Sat + pO_2 \times 0.03")
-
-fio2 = st.number_input("FiO₂ (%)", min_value=21.0, max_value=100.0, value=21.0)
-
-if fio2 > 30:
-    st.warning("⚠️ FiO₂ >30%: incluir oxígeno disuelto es importante.")
-
-st.subheader("Saturación venosa mixta")
-
-st.latex(r"SatVM = \frac{(3 \times SatVCS) + SatVCI}{4}")
-
-metodo_vm = st.selectbox(
-    "Método para estimar saturación venosa mixta",
-    ["Usar solo VCS", "Calcular con VCS + VCI"]
+tab_datos, tab_medidas, tab_fick, tab_td, tab_ref = st.tabs(
+    ["Datos", "Medidas", "Resultados Fick", "Termodilución", "Referencias"]
 )
 
-sat_vm = None
-po2_vm = None
+# =========================================================
+# TAB 1 - DATOS
+# =========================================================
 
-if metodo_vm == "Usar solo VCS":
+with tab_datos:
 
-    sat_vcs = st.number_input("Saturación VCS (%)", min_value=0.0, max_value=100.0)
-    po2_vcs = st.number_input("pO₂ VCS (mmHg)", min_value=0.0)
+    st.header("Datos del paciente")
 
-    if sat_vcs > 0:
-        sat_vm = sat_vcs
-        st.success(f"Saturación venosa mixta estimada: {sat_vm:.1f}%")
+    col1, col2 = st.columns(2)
 
-    if po2_vcs > 0:
-        po2_vm = po2_vcs
-        st.success(f"pO₂ venosa mixta estimada: {po2_vm:.1f} mmHg")
+    with col1:
+        nombre = st.text_input("Nombre")
+        apellidos = st.text_input("Apellidos")
 
-else:
+        tipo_documento = st.selectbox(
+            "Tipo de documento",
+            ["Registro civil", "Tarjeta de identidad", "Cédula", "Pasaporte", "Otro"]
+        )
 
-    col_vm1, col_vm2 = st.columns(2)
+        if tipo_documento == "Otro":
+            tipo_documento_otro = st.text_input("Especifique tipo de documento")
 
-    with col_vm1:
-        sat_vcs = st.number_input("Saturación VCS (%)", min_value=0.0, max_value=100.0)
-        po2_vcs = st.number_input("pO₂ VCS (mmHg)", min_value=0.0)
+        numero_documento = st.text_input("Número de documento")
 
-    with col_vm2:
-        sat_vci = st.number_input("Saturación VCI (%)", min_value=0.0, max_value=100.0)
-        po2_vci = st.number_input("pO₂ VCI (mmHg)", min_value=0.0)
+        edad_numero = st.number_input("Edad", min_value=0)
+        edad_unidad = st.selectbox("Unidad de edad", ["días", "meses", "años"])
 
-    if sat_vcs > 0 and sat_vci > 0:
-        sat_vm = ((3 * sat_vcs) + sat_vci) / 4
-        st.success(f"Saturación venosa mixta calculada: {sat_vm:.1f}%")
+    with col2:
+        peso = st.number_input("Peso (kg)", min_value=0.0)
+        talla = st.number_input("Talla (cm)", min_value=0.0)
+        institucion = st.text_input("Institución")
+        aseguradora = st.text_input("Aseguradora / EPS")
+        fecha = st.date_input("Fecha del estudio", value=date.today())
 
-    if po2_vcs > 0 and po2_vci > 0:
-        po2_vm = ((3 * po2_vcs) + po2_vci) / 4
-        st.success(f"pO₂ venosa mixta estimada: {po2_vm:.1f} mmHg")
+    if edad_unidad == "días":
+        edad_anos = edad_numero / 365
+    elif edad_unidad == "meses":
+        edad_anos = edad_numero / 12
+    else:
+        edad_anos = edad_numero
 
-st.subheader("Muestras para contenido de oxígeno")
+    st.header("Datos fisiológicos")
 
-col_o2_1, col_o2_2 = st.columns(2)
+    col3, col4 = st.columns(2)
 
-with col_o2_1:
-    sat_ao = st.number_input("Saturación aórtica / sistémica (%)", min_value=0.0, max_value=100.0)
-    pao2 = st.number_input("PaO₂ / pO₂ aórtica (mmHg)", min_value=0.0)
+    with col3:
+        hb = st.number_input("Hemoglobina (g/dL)", min_value=0.0)
+        fio2 = st.number_input("FiO₂ (%)", min_value=21.0, max_value=100.0, value=21.0)
+        FC = st.number_input("Frecuencia cardíaca (lpm)", min_value=1)
 
-with col_o2_2:
-    sat_pv = st.number_input(
-        "Saturación venosa pulmonar / aurícula izquierda (%)",
-        min_value=0.0,
-        max_value=100.0,
-        value=98.0
+    with col4:
+        if peso > 0 and talla > 0:
+            SC = 0.024265 * (peso ** 0.5378) * (talla ** 0.3964)
+            st.success(f"Superficie corporal: {SC:.2f} m²")
+        else:
+            SC = None
+            st.info("Ingrese peso y talla para calcular superficie corporal.")
+
+        if hb > 0 and (hb < 5 or hb > 25):
+            st.warning("⚠️ Hemoglobina fuera de rango fisiológico habitual.")
+
+        if fio2 > 30:
+            st.warning("⚠️ FiO₂ >30%: incluir oxígeno disuelto es importante.")
+
+    st.header("Cálculo de VO₂")
+
+    metodo_vo2 = st.selectbox(
+        "Método de cálculo de VO₂",
+        ["VO₂ medido directamente", "Ecuación de Seckeler", "Ecuación de LaFarge"]
     )
-    po2_pv = st.number_input("pO₂ venosa pulmonar / aurícula izquierda (mmHg)", min_value=0.0)
 
-sat_pa = st.number_input("Saturación arteria pulmonar (%)", min_value=0.0, max_value=100.0)
-po2_pa = st.number_input("pO₂ arteria pulmonar (mmHg)", min_value=0.0)
+    sexo = None
 
-Ca = None
-Cv = None
-Cpv = None
-Cpa = None
+    if metodo_vo2 == "VO₂ medido directamente":
 
-def contenido_oxigeno(hb_g_dl, sat_pct, po2):
-    hb_g_l = hb_g_dl * 10
-    sat_decimal = sat_pct / 100
-    return (hb_g_l * 1.36 * sat_decimal) + (po2 * 0.03)
+        vo2_indexado = st.number_input(
+            "VO₂ indexado (mL/min/m²)",
+            min_value=0.0
+        )
 
-if hb > 0:
+        if vo2_indexado > 0:
+            st.success(f"VO₂ indexado: {vo2_indexado:.2f} mL/min/m²")
 
-    if sat_ao > 0:
-        Ca = contenido_oxigeno(hb, sat_ao, pao2)
-        st.success(f"Contenido arterial sistémico / aórtico: {Ca:.2f} mL/L")
+    elif metodo_vo2 == "Ecuación de Seckeler":
 
-    if sat_vm is not None:
-        Cv = contenido_oxigeno(hb, sat_vm, po2_vm if po2_vm is not None else 0)
-        st.success(f"Contenido venoso mixto: {Cv:.2f} mL/L")
+        st.latex(r"VO_2 = 138 - 11\ln(edad) - 0.022 \cdot FC + S - 4 \cdot Hb")
 
-    if sat_pv > 0:
-        Cpv = contenido_oxigeno(hb, sat_pv, po2_pv)
-        st.success(f"Contenido venoso pulmonar / aurícula izquierda: {Cpv:.2f} mL/L")
+        sexo = st.selectbox("Sexo", ["Masculino", "Femenino"])
 
-    if sat_pa > 0:
-        Cpa = contenido_oxigeno(hb, sat_pa, po2_pa)
-        st.success(f"Contenido arteria pulmonar: {Cpa:.2f} mL/L")
+        if edad_anos > 0 and hb > 0:
+            sexo_valor = 10 if sexo == "Masculino" else 0
+            vo2_indexado = (
+                138
+                - (11 * math.log(edad_anos))
+                - (0.022 * FC)
+                + sexo_valor
+                - (4 * hb)
+            )
 
-else:
-    st.info("Ingrese hemoglobina para calcular contenido de oxígeno.")
+            st.success(f"VO₂ estimado indexado: {vo2_indexado:.2f} mL/min/m²")
 
-# ---------------------------
-# FLUJOS POR FICK
-# ---------------------------
+            if edad_anos < 1:
+                st.info("Edad <1 año: se usó edad en meses/12 o días/365 para evitar ln(0).")
 
-st.header("Flujos por método de Fick")
+            if edad_anos < 3:
+                st.warning("⚠️ Mayor riesgo de inexactitud en menores de 3 años.")
 
-Qp_i = None
-Qs_i = None
-Qp = None
-Qs = None
+            if hb < 10:
+                st.warning("⚠️ La anemia puede afectar la precisión del VO₂ estimado.")
+        else:
+            st.info("Ingrese edad y hemoglobina para calcular VO₂ con Seckeler.")
 
-if vo2_indexado is not None and vo2_indexado > 0:
+    elif metodo_vo2 == "Ecuación de LaFarge":
 
-    if Ca is not None and Cv is not None and Cpv is not None and Cpa is not None:
+        st.latex(r"VO_2 = 138.1 - 11.49\ln(edad) + 0.378 \cdot FC")
 
-        dif_sistemica = Ca - Cv
-        dif_pulmonar = Cpv - Cpa
+        if edad_anos > 0:
+            vo2_indexado = 138.1 - (11.49 * math.log(edad_anos)) + (0.378 * FC)
 
-        if dif_sistemica > 0 and dif_pulmonar > 0:
+            st.success(f"VO₂ estimado indexado: {vo2_indexado:.2f} mL/min/m²")
 
-            Qs_i = vo2_indexado / dif_sistemica
-            Qp_i = vo2_indexado / dif_pulmonar
+            st.warning("⚠️ Método histórico. No recomendado como primera opción.")
 
-            st.subheader("Flujos indexados")
-            st.success(f"Qs indexado / índice cardíaco sistémico: {Qs_i:.2f} L/min/m²")
-            st.success(f"Qp indexado / índice pulmonar: {Qp_i:.2f} L/min/m²")
+            if edad_anos < 3:
+                st.error("❌ Alta inexactitud esperada en menores de 3 años.")
+        else:
+            st.info("Ingrese edad mayor de 0 para calcular VO₂.")
 
-            if SC:
-                Qs = Qs_i * SC
-                Qp = Qp_i * SC
+# =========================================================
+# TAB 2 - MEDIDAS
+# =========================================================
 
-                st.subheader("Flujos no indexados")
-                st.success(f"Qs no indexado / gasto cardíaco sistémico: {Qs:.2f} L/min")
-                st.success(f"Qp no indexado / flujo pulmonar: {Qp:.2f} L/min")
+with tab_medidas:
+
+    st.header("Medidas de saturación, pO₂ y presiones")
+
+    st.subheader("Saturación venosa mixta")
+
+    metodo_vm = st.selectbox(
+        "Método para estimar saturación venosa mixta",
+        ["Usar solo VCS", "Calcular con VCS + VCI"]
+    )
+
+    sat_vm = None
+    po2_vm = None
+
+    if metodo_vm == "Usar solo VCS":
+
+        colv1, colv2, colv3 = st.columns(3)
+
+        with colv1:
+            sat_vcs = st.number_input("Sat VCS (%)", min_value=0.0, max_value=100.0)
+
+        with colv2:
+            po2_vcs = st.number_input("pO₂ VCS (mmHg)", min_value=0.0)
+
+        with colv3:
+            presion_vcs = st.number_input("Presión VCS/RAP (mmHg)", min_value=0.0)
+
+        if sat_vcs > 0:
+            sat_vm = sat_vcs
+            st.success(f"Sat venosa mixta estimada: {sat_vm:.1f}%")
+
+        if po2_vcs > 0:
+            po2_vm = po2_vcs
+            st.success(f"pO₂ venosa mixta estimada: {po2_vm:.1f} mmHg")
+
+    else:
+
+        st.latex(r"SatVM = \frac{(3 \times SatVCS) + SatVCI}{4}")
+
+        colv1, colv2 = st.columns(2)
+
+        with colv1:
+            sat_vcs = st.number_input("Sat VCS (%)", min_value=0.0, max_value=100.0)
+            po2_vcs = st.number_input("pO₂ VCS (mmHg)", min_value=0.0)
+
+        with colv2:
+            sat_vci = st.number_input("Sat VCI (%)", min_value=0.0, max_value=100.0)
+            po2_vci = st.number_input("pO₂ VCI (mmHg)", min_value=0.0)
+
+        if sat_vcs > 0 and sat_vci > 0:
+            sat_vm = ((3 * sat_vcs) + sat_vci) / 4
+            st.success(f"Sat venosa mixta calculada: {sat_vm:.1f}%")
+
+        if po2_vcs > 0 and po2_vci > 0:
+            po2_vm = ((3 * po2_vcs) + po2_vci) / 4
+            st.success(f"pO₂ venosa mixta calculada: {po2_vm:.1f} mmHg")
+
+    st.subheader("Muestras principales")
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.markdown("**Aorta / sistémica**")
+        sat_ao = st.number_input("Sat Ao (%)", min_value=0.0, max_value=100.0)
+        pao2 = st.number_input("PaO₂ Ao (mmHg)", min_value=0.0)
+        MAP = st.number_input("MAP / presión arterial media (mmHg)", min_value=0.0)
+
+    with col2:
+        st.markdown("**Arteria pulmonar**")
+        sat_pa = st.number_input("Sat AP (%)", min_value=0.0, max_value=100.0)
+        po2_pa = st.number_input("pO₂ AP (mmHg)", min_value=0.0)
+        sPAP = st.number_input("sPAP (mmHg)", min_value=0.0)
+        dPAP = st.number_input("dPAP (mmHg)", min_value=0.0)
+        mPAP = st.number_input("mPAP (mmHg)", min_value=0.0)
+
+    with col3:
+        st.markdown("**Vena pulmonar / AI**")
+        sat_pv = st.number_input(
+            "Sat VP/AI (%)",
+            min_value=0.0,
+            max_value=100.0,
+            value=98.0
+        )
+        po2_pv = st.number_input("pO₂ VP/AI (mmHg)", min_value=0.0)
+        PAWP = st.number_input("PAWP / wedge / AI (mmHg)", min_value=0.0)
+        RAP = st.number_input("RAP / AD media (mmHg)", min_value=0.0)
+
+    st.header("Contenido de oxígeno")
+
+    st.latex(r"Contenido\ O_2 = Hb(g/L) \times 1.36 \times Sat + pO_2 \times 0.03")
+
+    def contenido_oxigeno(hb_g_dl, sat_pct, po2):
+        hb_g_l = hb_g_dl * 10
+        sat_decimal = sat_pct / 100
+        return (hb_g_l * 1.36 * sat_decimal) + (po2 * 0.03)
+
+    if hb > 0:
+
+        if sat_ao > 0:
+            Ca = contenido_oxigeno(hb, sat_ao, pao2)
+            st.success(f"Contenido arterial sistémico / aórtico: {Ca:.2f} mL/L")
+
+        if sat_vm is not None:
+            Cv = contenido_oxigeno(hb, sat_vm, po2_vm if po2_vm is not None else 0)
+            st.success(f"Contenido venoso mixto: {Cv:.2f} mL/L")
+
+        if sat_pv > 0:
+            Cpv = contenido_oxigeno(hb, sat_pv, po2_pv)
+            st.success(f"Contenido venoso pulmonar / AI: {Cpv:.2f} mL/L")
+
+        if sat_pa > 0:
+            Cpa = contenido_oxigeno(hb, sat_pa, po2_pa)
+            st.success(f"Contenido arteria pulmonar: {Cpa:.2f} mL/L")
+
+    else:
+        st.info("Ingrese hemoglobina en la pestaña Datos.")
+
+# =========================================================
+# TAB 3 - RESULTADOS FICK
+# =========================================================
+
+with tab_fick:
+
+    st.header("Resultados por método de Fick")
+
+    Qp_i = None
+    Qs_i = None
+    Qp = None
+    Qs = None
+
+    if vo2_indexado is not None and vo2_indexado > 0:
+
+        if Ca is not None and Cv is not None and Cpv is not None and Cpa is not None:
+
+            dif_sistemica = Ca - Cv
+            dif_pulmonar = Cpv - Cpa
+
+            if dif_sistemica > 0 and dif_pulmonar > 0:
+
+                Qs_i = vo2_indexado / dif_sistemica
+                Qp_i = vo2_indexado / dif_pulmonar
+
+                st.subheader("Flujos")
+
+                colf1, colf2, colf3 = st.columns(3)
+
+                with colf1:
+                    st.metric("iQs", f"{Qs_i:.2f} L/min/m²")
+                    st.metric("iQp", f"{Qp_i:.2f} L/min/m²")
+
+                if SC:
+                    Qs = Qs_i * SC
+                    Qp = Qp_i * SC
+
+                    with colf2:
+                        st.metric("Qs", f"{Qs:.2f} L/min")
+                        st.metric("Qp", f"{Qp:.2f} L/min")
+
+                with colf3:
+                    if Qs_i > 0:
+                        qp_qs = Qp_i / Qs_i
+                        st.metric("Qp/Qs", f"{qp_qs:.2f}")
+
+                st.subheader("Hemodinámica avanzada Fick")
+
+                if SC and Qs is not None and Qp is not None:
+
+                    TPG = mPAP - PAWP
+
+                    VS = (Qs * 1000) / FC
+                    IVS = VS / SC
+
+                    RVP = TPG / Qp
+                    IRVP = RVP * SC
+
+                    RPT = mPAP / Qp
+
+                    RVS = (MAP - RAP) / Qs
+                    IRVS = RVS * SC
+
+                    colr1, colr2, colr3 = st.columns(3)
+
+                    with colr1:
+                        st.metric("TPG", f"{TPG:.2f} mmHg")
+                        st.metric("VS", f"{VS:.2f} mL/latido")
+                        st.metric("IVS", f"{IVS:.2f} mL/latido/m²")
+
+                    with colr2:
+                        st.metric("RVP", f"{RVP:.2f} WU")
+                        st.metric("IRVP", f"{IRVP:.2f} WU·m²")
+                        st.metric("RPT", f"{RPT:.2f} WU")
+
+                    with colr3:
+                        st.metric("RVS", f"{RVS:.2f} WU")
+                        st.metric("IRVS", f"{IRVS:.2f} WU·m²")
+                        if RVS > 0:
+                            st.metric("RVP/RVS", f"{RVP/RVS:.2f}")
+
+                    st.subheader("Compliance y PAPi")
+
+                    colc1, colc2 = st.columns(2)
+
+                    with colc1:
+                        if (sPAP - dPAP) > 0:
+                            CAP = VS / (sPAP - dPAP)
+                            st.metric("CAP", f"{CAP:.2f} mL/mmHg")
+
+                            if CAP < 2.3:
+                                st.warning("⚠️ Compliance arterial pulmonar reducida.")
+
+                    with colc2:
+                        if RAP > 0:
+                            PAPi = (sPAP - dPAP) / RAP
+                            st.metric("PAPi", f"{PAPi:.2f}")
+
+                            if PAPi < 1:
+                                st.error("⚠️ PAPi severamente disminuido.")
+                            elif PAPi < 1.5:
+                                st.warning("⚠️ PAPi bajo.")
+                            else:
+                                st.info("PAPi conservado.")
+
+                    if st.checkbox("Mostrar resistencias Fick en dyn·s·cm⁻⁵"):
+                        st.info(f"RVP: {RVP * 80:.2f} dyn·s·cm⁻⁵")
+                        st.info(f"RVS: {RVS * 80:.2f} dyn·s·cm⁻⁵")
+                        st.info(f"IRVP: {IRVP * 80:.2f} dyn·s·cm⁻⁵·m²")
+                        st.info(f"IRVS: {IRVS * 80:.2f} dyn·s·cm⁻⁵·m²")
+
+                else:
+                    st.info("Ingrese peso y talla para calcular parámetros no indexados y resistencias completas.")
+
             else:
-                st.warning("Ingrese peso y talla para calcular Qs y Qp no indexados.")
-
-            if Qs_i > 0:
-                qp_qs = Qp_i / Qs_i
-                st.subheader("Relación de cortocircuito")
-                st.success(f"Qp/Qs: {qp_qs:.2f}")
+                st.error("Las diferencias de contenido de oxígeno deben ser mayores de 0.")
 
         else:
-            st.error("Las diferencias de contenido de oxígeno deben ser mayores de 0.")
+            st.info("Complete los datos de contenido de oxígeno en la pestaña Medidas.")
 
     else:
-        st.info("Complete los datos de contenido de oxígeno para calcular flujos.")
+        st.info("Ingrese o calcule VO₂ en la pestaña Datos.")
 
-else:
-    st.info("Calcule o ingrese VO₂ indexado para calcular flujos.")
+# =========================================================
+# TAB 4 - TERMODILUCIÓN
+# =========================================================
 
-# ---------------------------
-# HEMODINÁMICA AVANZADA POR FICK
-# ---------------------------
+with tab_td:
 
-st.header("Hemodinámica avanzada por Fick")
+    st.header("Termodilución")
 
-col_pf1, col_pf2 = st.columns(2)
+    st.warning(
+        "La termodilución es útil cuando no hay cortocircuitos intracardíacos significativos. "
+        "No debe usarse como método principal para Qp/Qs en presencia de shunts."
+    )
 
-with col_pf1:
-    sPAP_fick = st.number_input("sPAP Fick (mmHg)", min_value=0.0)
-    dPAP_fick = st.number_input("dPAP Fick (mmHg)", min_value=0.0)
-    mPAP_fick = st.number_input("mPAP Fick (mmHg)", min_value=0.0)
-    PAWP_fick = st.number_input("PAWP / wedge Fick (mmHg)", min_value=0.0)
+    coltd1, coltd2 = st.columns(2)
 
-with col_pf2:
-    MAP_fick = st.number_input("MAP Fick (mmHg)", min_value=0.0)
-    RAP_fick = st.number_input("RAP Fick (mmHg)", min_value=0.0)
-    FC_fick = st.number_input("Frecuencia cardíaca Fick (lpm)", min_value=1)
-
-if Qs is not None and Qp is not None and Qs > 0 and Qp > 0:
-
-    st.subheader("Gasto cardíaco e índice cardíaco")
-
-    st.success(f"Gasto cardíaco sistémico por Fick (Qs): {Qs:.2f} L/min")
-
-    if Qs_i is not None:
-        st.success(f"Índice cardíaco por Fick: {Qs_i:.2f} L/min/m²")
-
-    # Volumen sistólico
-    VS_fick = (Qs * 1000) / FC_fick
-
-    st.subheader("Volumen sistólico")
-    st.success(f"Volumen sistólico sistémico por Fick: {VS_fick:.2f} mL/latido")
-
-    if SC:
-        IVS_fick = VS_fick / SC
-        st.success(f"Índice volumen sistólico por Fick: {IVS_fick:.2f} mL/latido/m²")
-
-        if IVS_fick < 33:
-            st.warning("⚠️ Índice volumen sistólico disminuido")
-        elif IVS_fick <= 47:
-            st.info("Índice volumen sistólico dentro de rango esperado")
-        else:
-            st.warning("Índice volumen sistólico elevado")
-
-    # Gradiente transpulmonar
-    TPG_fick = mPAP_fick - PAWP_fick
-
-    st.subheader("Gradiente transpulmonar")
-    st.success(f"TPG por Fick: {TPG_fick:.2f} mmHg")
-
-    # RVP
-    PVR_fick = TPG_fick / Qp
-
-    st.subheader("Resistencia vascular pulmonar")
-    st.success(f"RVP no indexada por Fick: {PVR_fick:.2f} Wood units")
-
-    if SC:
-        PVRI_fick = PVR_fick * SC
-        st.success(f"RVP indexada por Fick: {PVRI_fick:.2f} Wood·m²")
-    else:
-        PVRI_fick = None
-
-    # RPT
-    TPR_fick = mPAP_fick / Qp
-
-    st.subheader("Resistencia pulmonar total")
-    st.success(f"RPT por Fick: {TPR_fick:.2f} Wood units")
-
-    # RVS
-    SVR_fick = (MAP_fick - RAP_fick) / Qs
-
-    st.subheader("Resistencia vascular sistémica")
-    st.success(f"RVS no indexada por Fick: {SVR_fick:.2f} Wood units")
-
-    if SC:
-        SVRI_fick = SVR_fick * SC
-        st.success(f"RVS indexada por Fick: {SVRI_fick:.2f} Wood·m²")
-    else:
-        SVRI_fick = None
-
-    # Relación RVP/RVS
-    if SVR_fick > 0:
-        st.subheader("Relación RVP/RVS")
-        st.success(f"Relación RVP/RVS por Fick: {PVR_fick / SVR_fick:.2f}")
-
-    # Compliance pulmonar
-    if (sPAP_fick - dPAP_fick) > 0:
-        CAP_fick = VS_fick / (sPAP_fick - dPAP_fick)
-
-        st.subheader("Compliance arterial pulmonar")
-        st.success(f"Compliance arterial pulmonar por Fick: {CAP_fick:.2f} mL/mmHg")
-
-        if CAP_fick < 2.3:
-            st.warning("⚠️ Compliance arterial pulmonar reducida")
-
-    # PAPi
-    if RAP_fick > 0:
-        PAPi_fick = (sPAP_fick - dPAP_fick) / RAP_fick
-
-        st.subheader("Pulmonary Artery Pulsatility Index (PAPi)")
-        st.success(f"PAPi por Fick: {PAPi_fick:.2f}")
-
-    # Conversión a dyn
-    mostrar_dyn_fick = st.checkbox("Mostrar resistencias Fick en dyn·s·cm⁻⁵")
-
-    if mostrar_dyn_fick:
-        st.info(f"RVP Fick: {PVR_fick * 80:.2f} dyn·s·cm⁻⁵")
-        st.info(f"RVS Fick: {SVR_fick * 80:.2f} dyn·s·cm⁻⁵")
-
-        if PVRI_fick is not None:
-            st.info(f"RVP indexada Fick: {PVRI_fick * 80:.2f} dyn·s·cm⁻⁵·m²")
-
-        if SVRI_fick is not None:
-            st.info(f"RVS indexada Fick: {SVRI_fick * 80:.2f} dyn·s·cm⁻⁵·m²")
-
-else:
-    st.info("Calcule primero Qs y Qp por Fick para obtener hemodinámica avanzada.")
-# ---------------------------
-# HEMODINÁMICA AVANZADA / TERMODILUCIÓN
-# ---------------------------
-
-st.header("Hemodinámica avanzada / Termodilución")
-
-st.warning(
-    "La termodilución es útil para estimar gasto cardíaco cuando no hay cortocircuitos intracardíacos significativos. "
-    "No debe usarse como método principal para calcular Qp/Qs en presencia de shunts."
-)
-
-usar_td = st.checkbox("Calcular parámetros por termodilución")
-
-if usar_td:
-
-    col_td1, col_td2 = st.columns(2)
-
-    with col_td1:
-        CO_td = st.number_input("Gasto cardíaco por termodilución / CO (L/min)", min_value=0.0)
-        FC_td = st.number_input("Frecuencia cardíaca para termodilución (lpm)", min_value=1)
-
+    with coltd1:
+        CO_td = st.number_input("CO por termodilución (L/min)", min_value=0.0)
         sPAP_td = st.number_input("sPAP TD (mmHg)", min_value=0.0)
         dPAP_td = st.number_input("dPAP TD (mmHg)", min_value=0.0)
         mPAP_td = st.number_input("mPAP TD (mmHg)", min_value=0.0)
 
-    with col_td2:
-        RAP_td = st.number_input("RAP TD (mmHg)", min_value=0.0)
+    with coltd2:
         PAWP_td = st.number_input("PAWP / wedge TD (mmHg)", min_value=0.0)
+        RAP_td = st.number_input("RAP TD (mmHg)", min_value=0.0)
         MAP_td = st.number_input("MAP TD (mmHg)", min_value=0.0)
+        FC_td = st.number_input("FC TD (lpm)", min_value=1)
 
-    if CO_td > 0:
+    if CO_td > 0 and SC:
 
-        st.subheader("Gasto cardíaco e índice cardíaco")
-
-        st.success(f"Gasto cardíaco por termodilución: {CO_td:.2f} L/min")
-
-        if SC:
-            CI_td = CO_td / SC
-            st.success(f"Índice cardíaco por termodilución: {CI_td:.2f} L/min/m²")
-
-            if CI_td < 2.0:
-                st.error("⚠️ Índice cardíaco severamente disminuido.")
-            elif CI_td < 2.5:
-                st.warning("⚠️ Índice cardíaco bajo.")
-            elif CI_td <= 4.0:
-                st.info("Índice cardíaco dentro de rango esperado.")
-            else:
-                st.warning("Índice cardíaco elevado.")
-        else:
-            CI_td = None
-            st.warning("Ingrese peso y talla para calcular índice cardíaco.")
-
-        st.subheader("Volumen sistólico")
-
-        SV_td = (CO_td * 1000) / FC_td
-        st.success(f"Volumen sistólico: {SV_td:.2f} mL")
-
-        if SC:
-            SVI_td = SV_td / SC
-            st.success(f"Índice de volumen sistólico: {SVI_td:.2f} mL/m²")
-        else:
-            SVI_td = None
-
-        st.subheader("Gradiente transpulmonar")
+        CI_td = CO_td / SC
+        VS_td = (CO_td * 1000) / FC_td
+        IVS_td = VS_td / SC
 
         TPG_td = mPAP_td - PAWP_td
-        st.success(f"Gradiente transpulmonar TD: {TPG_td:.2f} mmHg")
 
-        st.subheader("Resistencia vascular pulmonar")
+        RVP_td = TPG_td / CO_td
+        IRVP_td = RVP_td * SC
 
-        PVR_td = TPG_td / CO_td
-        st.latex(r"RVP = \frac{mPAP - PAWP}{CO}")
-        st.success(f"RVP no indexada TD: {PVR_td:.2f} Wood units")
+        RPT_td = mPAP_td / CO_td
 
-        if SC:
-            PVRI_td = PVR_td * SC
-            st.success(f"RVP indexada TD: {PVRI_td:.2f} Wood·m²")
-        else:
-            PVRI_td = None
+        RVS_td = (MAP_td - RAP_td) / CO_td
+        IRVS_td = RVS_td * SC
 
-        st.subheader("Resistencia pulmonar total")
+        coltdr1, coltdr2, coltdr3 = st.columns(3)
 
-        TPR_td = mPAP_td / CO_td
-        st.latex(r"RPT = \frac{mPAP}{CO}")
-        st.success(f"RPT TD: {TPR_td:.2f} Wood units")
+        with coltdr1:
+            st.metric("CO", f"{CO_td:.2f} L/min")
+            st.metric("IC", f"{CI_td:.2f} L/min/m²")
+            st.metric("VS", f"{VS_td:.2f} mL/latido")
+            st.metric("IVS", f"{IVS_td:.2f} mL/latido/m²")
 
-        st.subheader("Resistencia vascular sistémica")
+        with coltdr2:
+            st.metric("TPG", f"{TPG_td:.2f} mmHg")
+            st.metric("RVP", f"{RVP_td:.2f} WU")
+            st.metric("IRVP", f"{IRVP_td:.2f} WU·m²")
+            st.metric("RPT", f"{RPT_td:.2f} WU")
 
-        SVR_td = (MAP_td - RAP_td) / CO_td
-        st.success(f"RVS no indexada TD: {SVR_td:.2f} Wood units")
+        with coltdr3:
+            st.metric("RVS", f"{RVS_td:.2f} WU")
+            st.metric("IRVS", f"{IRVS_td:.2f} WU·m²")
 
-        if SC:
-            SVRI_td = SVR_td * SC
-            st.success(f"RVS indexada TD: {SVRI_td:.2f} Wood·m²")
-        else:
-            SVRI_td = None
+            if RVS_td > 0:
+                st.metric("RVP/RVS", f"{RVP_td/RVS_td:.2f}")
 
-        if SVR_td > 0:
-            st.subheader("Relación RVP/RVS")
-            st.success(f"Relación RVP/RVS TD: {PVR_td / SVR_td:.2f}")
+        st.subheader("Compliance y PAPi")
 
-        st.subheader("Compliance arterial pulmonar")
+        colcap, colpapi = st.columns(2)
 
-        if (sPAP_td - dPAP_td) > 0:
-            PAC_td = SV_td / (sPAP_td - dPAP_td)
-            st.latex(r"CAP = \frac{VS}{sPAP - dPAP}")
-            st.success(f"Compliance arterial pulmonar TD: {PAC_td:.2f} mL/mmHg")
+        with colcap:
+            if (sPAP_td - dPAP_td) > 0:
+                CAP_td = VS_td / (sPAP_td - dPAP_td)
+                st.metric("CAP", f"{CAP_td:.2f} mL/mmHg")
 
-            if PAC_td < 2.3:
-                st.warning("⚠️ Compliance arterial pulmonar reducida.")
-        else:
-            st.info("Ingrese sPAP y dPAP válidas para calcular compliance arterial pulmonar.")
+        with colpapi:
+            if RAP_td > 0:
+                PAPi_td = (sPAP_td - dPAP_td) / RAP_td
+                st.metric("PAPi", f"{PAPi_td:.2f}")
 
-        st.subheader("Pulmonary Artery Pulsatility Index (PAPi)")
-
-        if RAP_td > 0:
-            PAPi_td = (sPAP_td - dPAP_td) / RAP_td
-            st.latex(r"PAPi = \frac{sPAP - dPAP}{RAP}")
-            st.success(f"PAPi TD: {PAPi_td:.2f}")
-
-            if PAPi_td < 1:
-                st.error("⚠️ PAPi severamente disminuido.")
-            elif PAPi_td < 1.5:
-                st.warning("⚠️ PAPi bajo.")
-            else:
-                st.info("PAPi conservado.")
-        else:
-            st.info("Ingrese RAP mayor de 0 para calcular PAPi.")
-
-        mostrar_dyn_td = st.checkbox("Mostrar termodilución en dyn·s·cm⁻⁵")
-
-        if mostrar_dyn_td:
-            st.subheader("Conversión a dyn·s·cm⁻⁵")
-
-            st.info(f"RVP TD: {PVR_td * 80:.2f} dyn·s·cm⁻⁵")
-            st.info(f"RVS TD: {SVR_td * 80:.2f} dyn·s·cm⁻⁵")
-
-            if PVRI_td is not None:
-                st.info(f"RVP indexada TD: {PVRI_td * 80:.2f} dyn·s·cm⁻⁵·m²")
-
-            if SVRI_td is not None:
-                st.info(f"RVS indexada TD: {SVRI_td * 80:.2f} dyn·s·cm⁻⁵·m²")
+        if st.checkbox("Mostrar TD en dyn·s·cm⁻⁵"):
+            st.info(f"RVP: {RVP_td * 80:.2f} dyn·s·cm⁻⁵")
+            st.info(f"RVS: {RVS_td * 80:.2f} dyn·s·cm⁻⁵")
+            st.info(f"IRVP: {IRVP_td * 80:.2f} dyn·s·cm⁻⁵·m²")
+            st.info(f"IRVS: {IRVS_td * 80:.2f} dyn·s·cm⁻⁵·m²")
 
     else:
-        st.info("Ingrese gasto cardíaco por termodilución para calcular parámetros.")
+        st.info("Ingrese CO por termodilución y superficie corporal.")
 
-# ---------------------------
-# REFERENCIA
-# ---------------------------
+# =========================================================
+# TAB 5 - REFERENCIAS
+# =========================================================
 
-st.header("Referencias principales")
+with tab_ref:
 
-st.markdown("""
-**Contenido de oxígeno, Qp/Qs, flujos y resistencias:**  
-Wilkinson JL. *Haemodynamic calculations in the catheter laboratory.* Heart. 2001;85:113–120.
+    st.header("Referencias principales")
 
-**VO₂ medido:**  
-Li J. *Accurate Measurement of Oxygen Consumption in Children Undergoing Cardiac Catheterization.*  
-Catheterization and Cardiovascular Interventions. 2013;81(1):125-32. PMID: 22488802.
+    st.markdown("""
+    **Contenido de oxígeno, Qp/Qs, flujos y resistencias:**  
+    Wilkinson JL. *Haemodynamic calculations in the catheter laboratory.* Heart. 2001;85:113–120.
 
-**Ecuación de Seckeler:**  
-Seckeler MD, Hirsch R, Beekman RH, Goldstein BH.  
-*A New Predictive Equation for Oxygen Consumption in Children and Adults With Congenital and Acquired Heart Disease.*  
-Heart. 2015;101(7):517-24. PMID: 25429053.
+    **VO₂ medido:**  
+    Li J. *Accurate Measurement of Oxygen Consumption in Children Undergoing Cardiac Catheterization.*  
+    Catheterization and Cardiovascular Interventions. 2013;81(1):125-32. PMID: 22488802.
 
-**Ecuación de LaFarge-Miettinen:**  
-LaFarge CG, Miettinen OS. *The estimation of oxygen consumption.*  
-Cardiovascular Research. 1970;4:23-30.
+    **Ecuación de Seckeler:**  
+    Seckeler MD, Hirsch R, Beekman RH, Goldstein BH.  
+    *A New Predictive Equation for Oxygen Consumption in Children and Adults With Congenital and Acquired Heart Disease.*  
+    Heart. 2015;101(7):517-24. PMID: 25429053.
 
-**Hipertensión pulmonar:**  
-Humbert M, Kovacs G, Hoeper MM, et al.  
-*2022 ESC/ERS Guidelines for the Diagnosis and Treatment of Pulmonary Hypertension.*  
-European Respiratory Journal. 2023.
-""")
+    **Ecuación de LaFarge-Miettinen:**  
+    LaFarge CG, Miettinen OS. *The estimation of oxygen consumption.*  
+    Cardiovascular Research. 1970;4:23-30.
+
+    **Hipertensión pulmonar:**  
+    Humbert M, Kovacs G, Hoeper MM, et al.  
+    *2022 ESC/ERS Guidelines for the Diagnosis and Treatment of Pulmonary Hypertension.*  
+    European Respiratory Journal. 2023.
+    """)
